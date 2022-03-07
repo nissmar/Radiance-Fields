@@ -3,6 +3,9 @@ from tqdm import tqdm
 import imageio
 import numpy as np
 import json
+from torch.utils.data import Dataset
+import torch
+
 
 
 # FROM PLENOXELS
@@ -51,3 +54,33 @@ def get_cameras_centers(rays_or_dir):
         # all cameras share same center
         centers[i, :] = rays_or_dir[i][0][0, 0]
     return centers
+
+def reduce_data(all_c2w, all_gt, focal, red_fac, N_points):
+    H,W = all_gt[0].shape[:2]
+    red_ims = [gt[::red_fac,::red_fac,:] for gt in all_gt]
+    red_rays_or_dir = [get_rays_np(H,W, focal, c2w) for c2w in all_c2w]
+    rays = [e[0][::red_fac,::red_fac,:, None] + np.arange(N_points)/10*e[1][::red_fac, ::red_fac,:, None] for e in red_rays_or_dir]
+    
+    return red_ims, rays
+
+class RayDataset(Dataset):
+    def __init__(self, target_ims, rays, device):
+        im_w = target_ims[0].shape[0]
+
+        self.tensor_rays = []
+        self.tensor_target_pixels = []
+        
+        for image_ind in tqdm(range(im_w)):
+            for i in range(im_w):
+                for j in range(im_w):
+                    self.tensor_rays.append(torch.tensor(rays[image_ind][i,j], dtype=torch.float32).to(device).T)
+                    self.tensor_target_pixels.append(torch.tensor(target_ims[image_ind][i,j], dtype=torch.float32).to(device))
+
+    def __getitem__(self, index):
+        return self.tensor_rays[index], self.tensor_target_pixels[index]
+    def __len__(self):
+        return len(self.tensor_rays)
+
+
+
+
