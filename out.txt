@@ -1,2 +1,0 @@
-LOAD DATA ../lego/train
-All data loaded. Making dataloader..
