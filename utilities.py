@@ -5,6 +5,8 @@ import numpy as np
 import json
 from torch.utils.data import Dataset
 import torch
+from PIL import Image
+
 
 
 
@@ -55,25 +57,45 @@ def get_cameras_centers(rays_or_dir):
         centers[i, :] = rays_or_dir[i][0][0, 0]
     return centers
 
-def reduce_data(all_c2w, all_gt, focal, red_fac, N_points):
+def reshape_numpy(arr, red_fac):
+    H,W = arr.shape[:2]
+    im = Image.fromarray(np.uint8(255*arr))
+    im = im.resize((H//red_fac,W//red_fac), Image.ANTIALIAS)
+    return np.array(im)/255.0
+
+def reduce_data(all_c2w, all_gt, focal, red_fac):
     H,W = all_gt[0].shape[:2]
-    red_ims = [gt[::red_fac,::red_fac,:] for gt in all_gt]
-    red_rays_or_dir = [get_rays_np(H,W, focal, c2w) for c2w in all_c2w]
-    rays = [e[0][::red_fac,::red_fac,:, None] + np.arange(N_points)/10*e[1][::red_fac, ::red_fac,:, None] for e in red_rays_or_dir]
+    red_ims = [reshape_numpy(gt,red_fac) for gt in all_gt]
     
-    return red_ims, rays
+    ordir_rays = []
+    for c2w in all_c2w:
+        ray_np = get_rays_np(H,W, focal, c2w)
+        oris = ray_np[0][::red_fac,::red_fac]
+        direct = ray_np[1][::red_fac,::red_fac] # direction. optimal fac:3
+        ordir_rays.append((oris, direct))
+    return red_ims, ordir_rays
+
+def regular_3d_indexes(n):
+    i = np.arange(n)
+    j = np.arange(n)
+    k = np.arange(n)
+    return np.transpose([np.tile(i, len(j)*len(k)), np.tile(np.repeat(j, len(i)), len(k)), np.repeat(k, len(i)*len(j))])
+
+# DATASETS
 
 class RayDataset(Dataset):
-    def __init__(self, target_ims, rays, device):
+    def __init__(self, target_ims, ordir_rays, device):
         im_w = target_ims[0].shape[0]
 
-        self.tensor_rays = []
+        self.tensor_rays = [] # (tuple (origin, first_point))
         self.tensor_target_pixels = []
         
         for image_ind in tqdm(range(im_w)):
             for i in range(im_w):
                 for j in range(im_w):
-                    self.tensor_rays.append(torch.tensor(rays[image_ind][i,j], dtype=torch.float32).to(device).T)
+                    ori = torch.tensor(ordir_rays[image_ind][0][i,j], dtype=torch.float32).to(device)
+                    direct = torch.tensor(ordir_rays[image_ind][1][i,j], dtype=torch.float32).to(device)        
+                    self.tensor_rays.append((ori, direct))
                     self.tensor_target_pixels.append(torch.tensor(target_ims[image_ind][i,j], dtype=torch.float32).to(device))
 
     def __getitem__(self, index):
@@ -81,6 +103,56 @@ class RayDataset(Dataset):
     def __len__(self):
         return len(self.tensor_rays)
 
+# FLY around
+def get_rot_x(angle):
+    Rx = np.zeros(shape=(3, 3))
+    Rx[0, 0] = 1
+    Rx[1, 1] = np.cos(angle)
+    Rx[1, 2] = -np.sin(angle)
+    Rx[2, 1] = np.sin(angle)
+    Rx[2, 2] = np.cos(angle)
+    return Rx
 
+def get_rot_y(angle):
+    Ry = np.zeros(shape=(3, 3))
+    Ry[0, 0] = np.cos(angle)
+    Ry[0, 2] = -np.sin(angle)
+    Ry[2, 0] = np.sin(angle)
+    Ry[2, 2] = np.cos(angle)
+    Ry[1, 1] = 1
+    return Ry
 
+def get_rot_z(angle):
+    Rz = np.zeros(shape=(3, 3))
+    Rz[0, 0] = np.cos(angle)
+    Rz[0, 1] = -np.sin(angle)
+    Rz[1, 0] = np.sin(angle)
+    Rz[1, 1] = np.cos(angle)
+    Rz[2, 2] = 1
+    
+    return Rz
+
+def create_rotation_transformation_matrix(center, theta=0,phi=0,alpha=0):
+    
+    out = np.identity(4)
+    net = np.identity(3)
+    
+    for transf, angle in zip([get_rot_y,  get_rot_z,get_rot_x],[alpha, theta+np.pi/2, phi+np.pi/2]):
+        net = np.matmul(net, transf(angle))
+        
+    out[:3,:3] = net
+    out[:3, -1] = center
+    return out
+
+def create_rotation_matrices(height, view_angle=-20, n=10):
+
+    t = np.linspace(0,2*np.pi, n+1)[:-1]
+    cust_centers = np.zeros((n,3))
+
+    radius = np.sqrt(17-height**2)
+    cust_centers[:,0] = np.cos(t)*radius
+    cust_centers[:,1] = np.sin(t)*radius
+    cust_centers[:,2] = height
+    
+    return [create_rotation_transformation_matrix(cust_centers[i], t[i], np.pi*view_angle/180) for i in range(n)]
 

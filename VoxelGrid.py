@@ -10,7 +10,7 @@ from utilities import *
 from pyvox.models import Vox, Color
 from pyvox.writer import VoxWriter
 
-device='cuda'
+device='cuda' if torch.cuda.is_available() else 'cpu'
 
 
 def laplacian3d(arr):
@@ -26,12 +26,6 @@ class VoxelGrid():
         self.bound_w = bound_w
         self.colors =  Variable(torch.rand((size*size*size,3)).to(device), requires_grad=True)
         self.opacities =  Variable(torch.rand((size*size*size)).to(device), requires_grad=True)
-        
-        x = np.linspace(-bound_w,bound_w,size)
-        y = np.linspace(-bound_w,bound_w,size)
-        z = np.linspace(-bound_w,bound_w,size)
-        self.meshgrid = np.meshgrid(x,y,z)
-
     def in_bounds_indices(self, p):
         ''' input: Nx3 array
             output: index of valid arrays'''
@@ -53,22 +47,6 @@ class VoxelGrid():
         ''' input: Nx3 array of indices
             out: N array of flatten indices'''
         return inds_3d[...,0] + self.size*inds_3d[...,1] + self.size*self.size*inds_3d[...,2]
-
-    def render_rays(self, p):
-        with torch.no_grad():
-            # extract valid indices
-            inds_3d = torch.round(self.descartes_to_indices(p))
-            in_bounds = self.in_bounds_indices(inds_3d)
-            # meshgrid coordinates
-            mesh_coords = self.flatten_3d_indices(inds_3d.long())
-            mesh_coords[torch.logical_not(in_bounds)] = 0
-
-        colors = self.colors[mesh_coords]
-        opacities = self.opacities[mesh_coords]*in_bounds.float()
-        cumsum_opacities = torch.cumsum(opacities, 1)
-        
-        transp_term = torch.exp(-cumsum_opacities)*(1-torch.exp(-opacities))
-        return (colors*transp_term[..., None]).sum(1)
 
     def update_grads(self, lr):
         self.colors.data -= lr * self.colors.grad.data        
@@ -98,6 +76,7 @@ class VoxelGrid():
         voxel_opacity = (1-torch.exp(-self.opacities))
         with torch.no_grad():
             self.opacities[voxel_opacity<r]=0
+            self.colors[voxel_opacity<r]=0
             
     def make_palette(self, n=50):
         kmeans = KMeans(n_clusters=n).fit(self.colors.cpu().detach().numpy())
@@ -132,3 +111,56 @@ class VoxelGrid():
         lap_color = laplacian3d(unfolded_colors).sum()
         lap_opacities = laplacian3d(unfolded_opacities).sum()
         return (lap_color/3)/(2*self.size**3)
+
+    def subdivide(self):
+        with torch.no_grad():
+
+            old_ind = regular_3d_indexes(self.size)
+
+            self.size = 2 * self.size
+
+            new_colors =  Variable(torch.rand((self.size*self.size*self.size,3)).to(device), requires_grad=True)
+            new_opacities =  Variable(torch.rand((self.size*self.size*self.size)).to(device), requires_grad=True)
+
+            offsets = [np.array([0,0,0]), np.array([1,0,0]),np.array([0,1,0]), np.array([0,0,1]),
+                      np.array([0,1,1]), np.array([1,1,0]), np.array([1,0,1]), np.array([1,1,1])]
+            
+            for off in offsets:
+                target_inds = self.flatten_3d_indices(2*old_ind+off)
+                new_colors[target_inds,:] = self.colors[:]
+                new_opacities[target_inds] = self.opacities[:]
+            self.colors = new_colors
+            self.opacities = new_opacities
+            
+    
+    def render_rays(self, ordir_tuple, N_points, inv_depth=1.2):
+        ori = ordir_tuple[0][:, None,:]
+        direct = torch.linspace(0,10, N_points, device=device)[None,:,None]/inv_depth*ordir_tuple[1][:, None,:]
+        
+        p = ori+direct
+        with torch.no_grad():
+            # extract valid indices
+            inds_3d = torch.round(self.descartes_to_indices(p))
+            in_bounds = self.in_bounds_indices(inds_3d)
+            # meshgrid coordinates
+            mesh_coords = self.flatten_3d_indices(inds_3d.long())
+            mesh_coords[torch.logical_not(in_bounds)] = 0
+
+        colors = self.colors[mesh_coords]
+        opacities = self.opacities[mesh_coords]*in_bounds.float()
+        
+        # WARNING: Assuming constant distance
+        distances = torch.sqrt((p[:, 0] - p[:, 1])**2).sum(1,keepdim=True)  
+        opacities = opacities*distances
+        cumsum_opacities = torch.cumsum(opacities, 1)
+        
+        transp_term = torch.exp(-cumsum_opacities)*(1-torch.exp(-opacities))
+        return (colors*transp_term[..., None]).sum(1)
+    
+    def render_image_from_rays(self, im_rays, kwargs):
+        disp_im_w = im_rays[0].shape[0]
+        ori = torch.tensor(im_rays[0], dtype=torch.float32, device=device).view((disp_im_w*disp_im_w,3))
+        direct = torch.tensor(im_rays[1], dtype=torch.float32, device=device).view((disp_im_w*disp_im_w,3))
+        return self.render_rays((ori,direct),*kwargs).view((disp_im_w,disp_im_w,3)).cpu().detach().numpy()
+
+

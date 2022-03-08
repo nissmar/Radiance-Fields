@@ -15,12 +15,19 @@ from pyvox.writer import VoxWriter
 
 
 #VARIABLES
+#base_model = '64_best.obj'
+
+#OR
 grid_size = 64 
 bound_w = 1.2
-epochs = 81
+
+learning_rate = 1000
+
+
+epochs = 10
 train_reduce = 8
 test_reduce = 4
-N_points = 200
+N_points = 350
 image_ind = 2
 
 
@@ -43,22 +50,22 @@ disp_im_w = disp_ims[0].shape[0]
 print('All data loaded. Making dataloader..')
 
 D = RayDataset(target_ims, rays, device)
-train_loader = torch.utils.data.DataLoader(D, batch_size=5000, shuffle=True)
+train_loader = torch.utils.data.DataLoader(D, batch_size=3000, shuffle=True)
 
 
 VG = VoxelGrid(grid_size, bound_w)
-VG.load('64_best.obj')
+#VG.load(base_model)
 
 def train(epoch):
     losses=[]
     for batch_idx, (rays, pixels) in enumerate(train_loader):
         pix_estims = VG.render_rays(rays)
         
-        loss = ((pix_estims-pixels)**2).sum()/rays.shape[0] + 0.0001*VG.total_variation()
+        loss = ((pix_estims-pixels)**2).sum()/rays.shape[0] + 0.001*VG.total_variation()
         #loss = ((pix_estims-pixels)**2).sum()/rays.shape[0]
         loss.backward()
         losses.append(loss.item)
-        VG.update_grads(500)
+        VG.update_grads(learning_rate)
         if batch_idx%10==0:
             print(
                     "Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}".format(
