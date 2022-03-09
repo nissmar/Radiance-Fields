@@ -15,14 +15,14 @@ from pyvox.writer import VoxWriter
 
 
 #VARIABLES
-#base_model = '64_best.obj'
-
+base_model = '64_best.obj'
+subdivide=True
 #OR
 grid_size = 64 
 bound_w = 1.2
 
-learning_rate = 500
-N_points = 200
+learning_rate = 30
+N_points = 400
 
 
 epochs = 40
@@ -46,7 +46,9 @@ train_loader = torch.utils.data.DataLoader(D, batch_size=5000, shuffle=True)
 
 
 VG = VoxelGrid(grid_size, bound_w)
-#VG.load(base_model)
+VG.load(base_model)
+if subdivide:   
+    VG.subdivide()
 
 def train(epoch):
     losses=[]
@@ -79,8 +81,9 @@ for epoch in tqdm(range(epochs)):
     plt.show()
     plt.imsave('screenshots/a'+str(epoch)+'.png', new_im)
     losses += train(epoch)
-    print(losses)
+print(losses)
 
 VG.save(str(grid_size)+'b_'+str(epoch+1)+'.obj')
+plt.clf()
 plt.plot(losses)
 plt.savefig('screenshots/'+str(grid_size)+'_training.png')    

@@ -135,9 +135,12 @@ class VoxelGrid():
     
     def render_rays(self, ordir_tuple, N_points, inv_depth=1.2):
         ori = ordir_tuple[0][:, None,:]
-        direct = torch.linspace(0,10, N_points, device=device)[None,:,None]/inv_depth*ordir_tuple[1][:, None,:]
         
-        p = ori+direct
+        # WARNING: Assuming constant distance
+        distances = 10*torch.sqrt( (ordir_tuple[1]**2).sum(1, keepdim=True))/inv_depth/(N_points-1)
+        scatter_points = torch.rand_like(distances)*distances + torch.linspace(0,10, N_points, device=device)[None, :]/inv_depth
+
+        p = ori + scatter_points[:,:,None]*(ordir_tuple[1][:, None, :])        
         with torch.no_grad():
             # extract valid indices
             inds_3d = torch.round(self.descartes_to_indices(p))
@@ -145,12 +148,10 @@ class VoxelGrid():
             # meshgrid coordinates
             mesh_coords = self.flatten_3d_indices(inds_3d.long())
             mesh_coords[torch.logical_not(in_bounds)] = 0
-
-        colors = self.colors[mesh_coords]
-        opacities = self.opacities[mesh_coords]*in_bounds.float()
         
-        # WARNING: Assuming constant distance
-        distances = torch.sqrt((p[:, 0] - p[:, 1])**2).sum(1,keepdim=True)  
+        colors = self.colors[mesh_coords]
+        opacities = self.opacities[mesh_coords]*in_bounds.float() # not_in bounds: 0 opacity
+        
         opacities = opacities*distances
         cumsum_opacities = torch.cumsum(opacities, 1)
         
