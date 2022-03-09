@@ -4,6 +4,8 @@ import torch
 from torch.autograd import Variable
 import pickle 
 from sklearn.cluster import KMeans
+from ply import write_ply
+
 
 from utilities import *
 
@@ -163,5 +165,35 @@ class VoxelGrid():
         ori = torch.tensor(im_rays[0], dtype=torch.float32, device=device).view((disp_im_w*disp_im_w,3))
         direct = torch.tensor(im_rays[1], dtype=torch.float32, device=device).view((disp_im_w*disp_im_w,3))
         return self.render_rays((ori,direct),*kwargs).view((disp_im_w,disp_im_w,3)).cpu().detach().numpy()
+    def render_large_image_from_rays(self, im_rays, kwargs, batch_size=1000):
+        with torch.no_grad():
+            disp_im_w = im_rays[0].shape[0]
+            ori = torch.tensor(im_rays[0], dtype=torch.float32, device=device).view((disp_im_w*disp_im_w,3))
+            direct = torch.tensor(im_rays[1], dtype=torch.float32, device=device).view((disp_im_w*disp_im_w,3))
+
+            out_img = torch.zeros((disp_im_w*disp_im_w,3))
+            ind=0
+
+            for ori_it, direct_it in zip(tqdm(ori.split(batch_size)), direct.split(batch_size)):
+                out_img[batch_size*ind:batch_size*(ind+1)] = self.render_rays((ori_it,direct_it),*kwargs).detach()
+                ind+=1
+
+            return out_img.view((disp_im_w,disp_im_w,3)).cpu().detach().numpy()
+
+    def save_pointcloud(self, tresh=0, filename="test.ply"):
+        valid_ind = (self.opacities!=0).nonzero()
+        
+        j = torch.div(valid_ind, self.size, rounding_mode='floor')
+        k = torch.div(j, self.size, rounding_mode='floor')
+
+
+        cloud = torch.cat((valid_ind%self.size, 
+                           j%self.size, 
+                           k%self.size),1)/self.size
+        write_ply("saved_grids/" + filename,
+                  (cloud.cpu().detach().numpy(),
+                   self.colors[valid_ind.flatten()].cpu().detach().numpy(), 
+                   self.opacities[valid_ind.flatten()].cpu().detach().numpy()
+                  ), ['x', 'y', 'z', 'r', 'g','b', 'opacity'])
 
 
