@@ -38,12 +38,8 @@ class VoxelGrid():
     
     def descartes_to_indices(self, p):
         ''' input: Nx3 array, 3D points
-            out: Nx3 array, 3D indices in [0, size['''
-        q = torch.zeros_like(p)
-        q[..., 0] = (p[...,0]+self.bound_w)/(2*self.bound_w)*(self.size-1)
-        q[..., 1] = (p[...,1]+self.bound_w)/(2*self.bound_w)*(self.size-1)
-        q[..., 2] = (p[...,2]+self.bound_w)/(2*self.bound_w)*(self.size-1)
-        return q
+            out: Nx3 array, 3D indices in [0, size['''        
+        return (p+self.bound_w)/(2*self.bound_w)*self.size
 
     def flatten_3d_indices(self, inds_3d):
         ''' input: Nx3 array of indices
