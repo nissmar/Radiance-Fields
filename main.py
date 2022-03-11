@@ -15,18 +15,18 @@ from pyvox.writer import VoxWriter
 
 
 #VARIABLES
-base_model = '64_best.obj'
-subdivide=True
+base_model = '128_best?.obj'
+subdivide=False
 #OR
 grid_size = 64 
 bound_w = 1.2
 
-learning_rate = 30
-N_points = 400
+learning_rate = 1000
+N_points = 200
 
 
 epochs = 40
-train_reduce = 8
+train_reduce = 4
 test_reduce = 4
 image_ind = 2
 
@@ -41,8 +41,9 @@ focal, all_c2w, all_gt = get_data("../lego")
 target_ims, rays = reduce_data(all_c2w, all_gt, focal, train_reduce)
 disp_ims, disp_rays = reduce_data(all_c2w, all_gt, focal, test_reduce)
 print('All data loaded. Making dataloader..')
-D = RayDataset(target_ims, rays, device)
-train_loader = torch.utils.data.DataLoader(D, batch_size=5000, shuffle=True)
+print(len(rays))
+#D = RayDataset(target_ims, rays, device)
+#train_loader = torch.utils.data.DataLoader(D, batch_size=5000, shuffle=True)
 
 
 VG = VoxelGrid(grid_size, bound_w)
@@ -73,17 +74,19 @@ def train(epoch):
                 )
     return losses
 
-losses=[]
-for epoch in tqdm(range(epochs)):
-    VG.save(str(grid_size)+'a_'+str(epoch)+'.obj')
-    new_im = VG.render_image_from_rays(disp_rays[image_ind],(500,1.2))
-    plt.imshow(new_im)
-    plt.show()
-    plt.imsave('screenshots/a'+str(epoch)+'.png', new_im)
-    losses += train(epoch)
-print(losses)
+# losses=[]
+# for epoch in tqdm(range(epochs)):
+#     if epoch%5==0:
+#         VG.save(str(grid_size)+'a_'+str(epoch)+'.obj')
+#         plt.clf()
+#         plt.plot(losses)
+#         plt.savefig('screenshots/'+str(grid_size)+'_training.png')    
 
-VG.save(str(grid_size)+'b_'+str(epoch+1)+'.obj')
-plt.clf()
-plt.plot(losses)
-plt.savefig('screenshots/'+str(grid_size)+'_training.png')    
+#     new_im = VG.render_large_image_from_rays(disp_rays[image_ind],(500,1.2))
+#     plt.imshow(new_im)
+#     plt.show()
+#     plt.imsave('screenshots/a'+str(epoch)+'.png', new_im)
+#     losses += train(epoch)
+# print(losses)
+
+# VG.save(str(grid_size)+'b_'+str(epoch+1)+'.obj')

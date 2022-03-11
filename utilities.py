@@ -90,7 +90,7 @@ class RayDataset(Dataset):
         self.tensor_rays = [] # (tuple (origin, first_point))
         self.tensor_target_pixels = []
         
-        for image_ind in tqdm(range(im_w)):
+        for image_ind in tqdm(range(len(ordir_rays))):
             for i in range(im_w):
                 for j in range(im_w):
                     ori = torch.tensor(ordir_rays[image_ind][0][i,j], dtype=torch.float32).to(device)

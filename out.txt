@@ -1,0 +1,10 @@
+LOAD DATA ../lego/train
+All data loaded. Making dataloader..
+Train Epoch: 0 [0/200 (0%)]	Loss: 0.030543
+Train Epoch: 0 [10/200 (5%)]	Loss: 0.029510
+Train Epoch: 0 [20/200 (10%)]	Loss: 0.029346
+Train Epoch: 0 [30/200 (15%)]	Loss: 0.029586
+Train Epoch: 0 [40/200 (20%)]	Loss: 0.029831
+Train Epoch: 0 [50/200 (25%)]	Loss: 0.029272
+Train Epoch: 0 [60/200 (30%)]	Loss: 0.031127
+Train Epoch: 0 [70/200 (35%)]	Loss: 0.030829
