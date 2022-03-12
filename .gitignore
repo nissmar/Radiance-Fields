@@ -349,5 +349,5 @@ MigrationBackup/
 .ionide/
 
 
-saved_grids/
-screenshots/
+saved_grids*
+screenshots*

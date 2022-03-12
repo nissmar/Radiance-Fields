@@ -3228,3 +3228,17 @@ Train Epoch: 40 [240/800 (30%)]	Loss: 0.024889
 Train Epoch: 40 [250/800 (31%)]	Loss: 0.022007
 Train Epoch: 40 [260/800 (32%)]	Loss: 0.023995
 Train Epoch: 40 [270/800 (34%)]	Loss: 0.021314
+Train Epoch: 40 [280/800 (35%)]	Loss: 0.023197
+Train Epoch: 40 [290/800 (36%)]	Loss: 0.019791
+Train Epoch: 40 [300/800 (38%)]	Loss: 0.022515
+Train Epoch: 40 [310/800 (39%)]	Loss: 0.037322
+Train Epoch: 40 [320/800 (40%)]	Loss: 0.021251
+Train Epoch: 40 [330/800 (41%)]	Loss: 0.024019
+Train Epoch: 40 [340/800 (42%)]	Loss: 0.021179
+Train Epoch: 40 [350/800 (44%)]	Loss: 0.022892
+Train Epoch: 40 [360/800 (45%)]	Loss: 0.022956
+Train Epoch: 40 [370/800 (46%)]	Loss: 0.022761
+Train Epoch: 40 [380/800 (48%)]	Loss: 0.021690
+Train Epoch: 40 [390/800 (49%)]	Loss: 0.020014
+Train Epoch: 40 [400/800 (50%)]	Loss: 0.023915
+Train Epoch: 40 [410/800 (51%)]	Loss: 0.035943

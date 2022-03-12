@@ -29,6 +29,10 @@ class VoxelGrid():
         self.bound_w = bound_w
         self.colors =  Variable(torch.rand((size*size*size,3)).to(device), requires_grad=True)
         self.opacities =  Variable(torch.rand((size*size*size)).to(device), requires_grad=True)
+    def clamp(self):
+        with torch.no_grad():
+            self.opacities[:] = torch.clamp(self.opacities, 0)
+            self.colors[:] = torch.clamp(self.colors, 0,1)
     def in_bounds_indices(self, p):
         ''' input: Nx3 array
             output: index of valid arrays'''
@@ -113,23 +117,70 @@ class VoxelGrid():
 
     def subdivide(self):
         with torch.no_grad():
+            def old_flatten_3d(inds_3d):
+                return inds_3d[...,0] + self.size//2*inds_3d[...,1] + self.size*self.size//4*inds_3d[...,2]
+
+
 
             old_ind = regular_3d_indexes(self.size)
+            old_indm = regular_3d_indexes(self.size-1)
 
             self.size = 2 * self.size
 
-            new_colors =  Variable(torch.rand((self.size*self.size*self.size,3)).to(device), requires_grad=True)
-            new_opacities =  Variable(torch.rand((self.size*self.size*self.size)).to(device), requires_grad=True)
+            new_colors =  Variable(torch.zeros((self.size*self.size*self.size,3)).to(device), requires_grad=True)
+            new_opacities =  Variable(torch.zeros((self.size*self.size*self.size)).to(device), requires_grad=True)
 
-            offsets = [np.array([0,0,0]), np.array([1,0,0]),np.array([0,1,0]), np.array([0,0,1]),
-                      np.array([0,1,1]), np.array([1,1,0]), np.array([1,0,1]), np.array([1,1,1])]
-            
+        
+            target_inds = self.flatten_3d_indices(2*old_ind)
+            new_colors[target_inds,:] = self.colors[:]
+            new_opacities[target_inds] = self.opacities[:]
+
+            # edges
+            offsets = [np.array([1,0,0]),np.array([0,1,0]), np.array([0,0,1])]
             for off in offsets:
-                target_inds = self.flatten_3d_indices(2*old_ind+off)
-                new_colors[target_inds,:] = self.colors[:]
-                new_opacities[target_inds] = self.opacities[:]
+                c1_ind = old_flatten_3d(old_indm+off)
+                c2_ind = old_flatten_3d(old_indm)
+                
+                target_inds = self.flatten_3d_indices(2*old_indm+off)
+                new_colors[target_inds,:] = (self.colors[c1_ind,:]+self.colors[c2_ind,:])/2.0
+                new_opacities[target_inds] = (self.opacities[c1_ind]+self.opacities[c2_ind])/2.0
+                
+            # Volume
+            target_inds = self.flatten_3d_indices(2*old_indm+off[0]+off[1]+off[2])
+            inds=[]
+            inds.append(old_flatten_3d(old_indm+off[0]))
+            inds.append(old_flatten_3d(old_indm+off[1]))
+            inds.append(old_flatten_3d(old_indm+off[2]))
+            inds.append(old_flatten_3d(old_indm))
+            inds.append(old_flatten_3d(old_indm+off[0]+off[1]))
+            inds.append(old_flatten_3d(old_indm+off[1]+off[2]))
+            inds.append(old_flatten_3d(old_indm+off[2]+off[0]))
+            inds.append(old_flatten_3d(old_indm+off[0]+off[1]+off[2]))
+            
+            new_colors[target_inds,:] = sum([self.colors[c_ind,:] for c_ind in inds])/8.0
+            new_opacities[target_inds] = sum([self.opacities[c_ind] for c_ind in inds])/8.0
+
+                
+            offsets = [(np.array([1,0,0]),np.array([0,1,0]))
+                       ,(np.array([0,1,0]),np.array([0,0,1]))
+                       ,(np.array([0,0,1]),np.array([1,0,0]))]
+            
+            for (off1, off2) in offsets:
+                c1_ind = old_flatten_3d(old_indm+off1)
+                c2_ind = old_flatten_3d(old_indm+off2)
+                c3_ind = old_flatten_3d(old_indm+off1+off2)
+                c4_ind = old_flatten_3d(old_indm)
+                
+                target_inds = self.flatten_3d_indices(2*old_indm+off1+off2)
+                new_colors[target_inds,:] = (self.colors[c1_ind,:]+self.colors[c2_ind,:]
+                                            +self.colors[c3_ind,:]+self.colors[c4_ind,:])/4.0
+                new_opacities[target_inds] = (self.opacities[c1_ind]+self.opacities[c2_ind]
+                                             +self.opacities[c3_ind]+self.opacities[c4_ind])/4.0
+                
             self.colors = new_colors
             self.opacities = new_opacities
+
+
             
     
     def render_rays(self, ordir_tuple, N_points, inv_depth=1.2):
@@ -155,7 +206,7 @@ class VoxelGrid():
         cumsum_opacities = torch.cumsum(opacities, 1)
         
         transp_term = torch.exp(-cumsum_opacities)*(1-torch.exp(-opacities))
-        return (colors*transp_term[..., None]).sum(1)
+        return (colors*transp_term[..., None]).sum(1) + torch.exp(-cumsum_opacities[:, -1])[..., None]
     
     def render_image_from_rays(self, im_rays, kwargs):
         disp_im_w = im_rays[0].shape[0]
@@ -196,10 +247,15 @@ class VoxelGrid():
 
 
 class VoxelGridSpherical(VoxelGrid):
-    def clamp(self):
-        with torch.no_grad():
-            self.opacities[:] = torch.clamp(self.opacities, 0)
-            self.colors[:] = torch.clamp(self.colors, 0,1)
+    def __init__(self, size=128, bound_w=1, num_harm=4):
+        self.size = size
+        self.bound_w = bound_w
+        self.num_harm = 4
+        self.colors =  Variable(torch.rand((size*size*size,3,num_harm)).to(device), requires_grad=True)
+        self.opacities =  Variable(torch.rand((size*size*size)).to(device), requires_grad=True)
+
+
+
     def copy(self):
         CopyGrid = VoxelGridSpherical(self.size,self.bound_w, self.num_harm)
         CopyGrid.colors = torch.clone(self.colors)
@@ -208,28 +264,68 @@ class VoxelGridSpherical(VoxelGrid):
     
     def subdivide(self):
         with torch.no_grad():
+            def old_flatten_3d(inds_3d):
+                return inds_3d[...,0] + self.size//2*inds_3d[...,1] + self.size*self.size//4*inds_3d[...,2]
+
+
 
             old_ind = regular_3d_indexes(self.size)
-            self.size = 2 * self.size
-            new_colors =  Variable(torch.rand((self.size*self.size*self.size,3, self.num_harm)).to(device), requires_grad=True)
-            new_opacities =  Variable(torch.rand((self.size*self.size*self.size)).to(device), requires_grad=True)
+            old_indm = regular_3d_indexes(self.size-1)
 
-            offsets = [np.array([0,0,0]), np.array([1,0,0]),np.array([0,1,0]), np.array([0,0,1]),
-                      np.array([0,1,1]), np.array([1,1,0]), np.array([1,0,1]), np.array([1,1,1])]
-            
+            self.size = 2 * self.size
+
+            new_colors =  Variable(torch.zeros((self.size*self.size*self.size,3, self.num_harm)).to(device), requires_grad=True)
+            new_opacities =  Variable(torch.zeros((self.size*self.size*self.size)).to(device), requires_grad=True)
+
+        
+            target_inds = self.flatten_3d_indices(2*old_ind)
+            new_colors[target_inds,:] = self.colors[:]
+            new_opacities[target_inds] = self.opacities[:]
+
+            # edges
+            offsets = [np.array([1,0,0]),np.array([0,1,0]), np.array([0,0,1])]
             for off in offsets:
-                target_inds = self.flatten_3d_indices(2*old_ind+off)
-                new_colors[target_inds,:,:] = self.colors[:]
-                new_opacities[target_inds] = self.opacities[:]
+                c1_ind = old_flatten_3d(old_indm+off)
+                c2_ind = old_flatten_3d(old_indm)
+                
+                target_inds = self.flatten_3d_indices(2*old_indm+off)
+                new_colors[target_inds,:,:] = (self.colors[c1_ind,:]+self.colors[c2_ind,:])/2.0
+                new_opacities[target_inds] = (self.opacities[c1_ind]+self.opacities[c2_ind])/2.0
+                
+            # Volume
+            target_inds = self.flatten_3d_indices(2*old_indm+off[0]+off[1]+off[2])
+            inds=[]
+            inds.append(old_flatten_3d(old_indm+off[0]))
+            inds.append(old_flatten_3d(old_indm+off[1]))
+            inds.append(old_flatten_3d(old_indm+off[2]))
+            inds.append(old_flatten_3d(old_indm))
+            inds.append(old_flatten_3d(old_indm+off[0]+off[1]))
+            inds.append(old_flatten_3d(old_indm+off[1]+off[2]))
+            inds.append(old_flatten_3d(old_indm+off[2]+off[0]))
+            inds.append(old_flatten_3d(old_indm+off[0]+off[1]+off[2]))
+            
+            new_colors[target_inds,:,:] = sum([self.colors[c_ind,:] for c_ind in inds])/8.0
+            new_opacities[target_inds] = sum([self.opacities[c_ind] for c_ind in inds])/8.0
+
+                
+            offsets = [(np.array([1,0,0]),np.array([0,1,0]))
+                       ,(np.array([0,1,0]),np.array([0,0,1]))
+                       ,(np.array([0,0,1]),np.array([1,0,0]))]
+            
+            for (off1, off2) in offsets:
+                c1_ind = old_flatten_3d(old_indm+off1)
+                c2_ind = old_flatten_3d(old_indm+off2)
+                c3_ind = old_flatten_3d(old_indm+off1+off2)
+                c4_ind = old_flatten_3d(old_indm)
+                
+                target_inds = self.flatten_3d_indices(2*old_indm+off1+off2)
+                new_colors[target_inds,:,:] = (self.colors[c1_ind,:]+self.colors[c2_ind,:]
+                                            +self.colors[c3_ind,:]+self.colors[c4_ind,:])/4.0
+                new_opacities[target_inds] = (self.opacities[c1_ind]+self.opacities[c2_ind]
+                                             +self.opacities[c3_ind]+self.opacities[c4_ind])/4.0
+                
             self.colors = new_colors
             self.opacities = new_opacities
-            
-    def __init__(self, size=128, bound_w=1, num_harm=4):
-        self.size = size
-        self.bound_w = bound_w
-        self.num_harm = 4
-        self.colors =  Variable(torch.rand((size*size*size,3,num_harm)).to(device), requires_grad=True)
-        self.opacities =  Variable(torch.rand((size*size*size)).to(device), requires_grad=True)
 
 
     def view_harmonics(self, point):
@@ -270,8 +366,17 @@ class VoxelGridSpherical(VoxelGrid):
         cumsum_opacities = torch.cumsum(opacities, 1)
 
         transp_term = torch.exp(-cumsum_opacities)*(1-torch.exp(-opacities))
-        return (colors*transp_term[..., None]).sum(1)
+        return (colors*transp_term[..., None]).sum(1) + torch.exp(-cumsum_opacities[:, -1])[..., None]
+    def unfold_arrays(self):
+        unfolded_colors = self.colors.view((self.size, self.size, self.size, 3, self.num_harm)).transpose(2,0)
+        unfolded_opacities =  self.opacities.view((self.size, self.size, self.size)).transpose(2,0)
+        return unfolded_colors, unfolded_opacities
     
+    def total_variation(self):
+        unfolded_colors, unfolded_opacities = self.unfold_arrays()
+        lap_color = laplacian3d(unfolded_colors).sum()
+        lap_opacities = laplacian3d(unfolded_opacities).sum() 
+        return (lap_color/(3*self.num_harm)+lap_opacities)/(2*self.size**3)
     
 class VoxelGridSphericalInterp(VoxelGridSpherical):
     def in_bounds_indices(self, p):
@@ -334,6 +439,6 @@ class VoxelGridSphericalInterp(VoxelGridSpherical):
         cumsum_opacities = torch.cumsum(opacities, 1)
 
         transp_term = torch.exp(-cumsum_opacities)*(1-torch.exp(-opacities))
-        return (colors*transp_term[..., None]).sum(1)
+        return (colors*transp_term[..., None]).sum(1) + torch.exp(-cumsum_opacities[:, -1])[..., None]
     
 

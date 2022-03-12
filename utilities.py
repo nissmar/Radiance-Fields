@@ -26,7 +26,7 @@ def get_data(root="../nerf_example_data/nerf_synthetic/lego", stage="train"):
             frame['file_path']) + '.png')
         c2w = frame['transform_matrix']
         im_gt = imageio.imread(fpath).astype(np.float32) / 255.0
-        im_gt = im_gt[..., :3] * im_gt[..., 3:]
+        im_gt = im_gt[..., :3] * im_gt[..., 3:] + (1.0 - im_gt[..., 3:])
         all_c2w.append(c2w)
         all_gt.append(im_gt)
     focal = 0.5 * all_gt[0].shape[1] / np.tan(0.5 * j['camera_angle_x'])
