@@ -109,7 +109,7 @@ class VoxelGrid():
         unfolded_colors, unfolded_opacities = self.unfold_arrays()
         lap_color = laplacian3d(unfolded_colors).sum()
         lap_opacities = laplacian3d(unfolded_opacities).sum()
-        return (lap_color/3)/(2*self.size**3)
+        return (lap_color/3+lap_opacities)/(2*self.size**3)
 
     def subdivide(self):
         with torch.no_grad():
@@ -271,3 +271,69 @@ class VoxelGridSpherical(VoxelGrid):
 
         transp_term = torch.exp(-cumsum_opacities)*(1-torch.exp(-opacities))
         return (colors*transp_term[..., None]).sum(1)
+    
+    
+class VoxelGridSphericalInterp(VoxelGridSpherical):
+    def in_bounds_indices(self, p):
+        ''' input: Nx3 array
+            output: index of valid arrays'''
+        in_x = (p[...,0]>=0)*(p[...,0]<(self.size-1))
+        in_y = (p[...,1]>=0)*(p[...,1]<(self.size-1))
+        in_z = (p[...,2]>=0)*(p[...,2]<(self.size-1))
+        return in_x*in_y*in_z
+   
+    def render_rays(self, ordir_tuple, N_points, inv_depth=1.2):
+
+        ori = ordir_tuple[0][:, None,:]
+        # WARNING: Assuming constant distance
+        distances = 10*torch.sqrt( (ordir_tuple[1]**2).sum(1, keepdim=True))/inv_depth/(N_points-1)
+        scatter_points = torch.rand_like(distances)*distances + torch.linspace(0,10, N_points, device=device)[None, :]/inv_depth
+        p = ori + scatter_points[:,:,None]*(ordir_tuple[1][:, None, :])
+        
+        offsets = [np.array([0,0,0]), 
+                   np.array([1,0,0]), 
+                   np.array([0,0,1]),
+                   np.array([1,0,1]),
+                   np.array([0,1,0]),
+                   np.array([1,1,0]),  
+                   np.array([0,1,1]),
+                   np.array([1,1,1])]
+        #indicies
+        p = self.descartes_to_indices(p)   
+        p0 = torch.floor(p)
+        in_bounds = self.in_bounds_indices(p)
+        diff = (p-p0)
+        ind_offsets = []
+        for i in range(8):
+            mesh_coords = self.flatten_3d_indices(p0+torch.tensor(offsets[i]).to(device)).long()
+            mesh_coords[torch.logical_not(in_bounds)] = 0
+            ind_offsets.append(mesh_coords)
+
+
+        harmonics = self.view_harmonics(p[0,0])
+        
+        
+        
+        # color interp
+        ciii = [torch.tensordot(self.colors[ind_offsets[i]],harmonics, dims=([-1], [0]))
+                *(1-diff[...,0, None])+
+                torch.tensordot(self.colors[ind_offsets[i+1]],harmonics, dims=([-1], [0]))
+                *diff[...,0, None] for i in range(0,8,2)]
+        cii = [ciii[i]*(1-diff[...,1, None]) + ciii[i+2]*diff[...,1, None] for i in [0,1]]
+        colors = cii[0]*(1-diff[...,2, None])+cii[1]*diff[...,2, None]
+        
+        # opacities interp
+        ciii = [self.opacities[ind_offsets[i]]
+                *(1-diff[...,0]) +
+                self.opacities[ind_offsets[i+1]]
+                *diff[...,0] for i in range(0,8,2)]
+        cii = [ciii[i]*(1-diff[...,1]) + ciii[i+2]*diff[...,1] for i in [0,1]]
+        opacities = (cii[0]*(1-diff[...,2])+cii[1]*diff[...,2])
+        
+        opacities = opacities*distances*in_bounds.float() # REMOVE
+        cumsum_opacities = torch.cumsum(opacities, 1)
+
+        transp_term = torch.exp(-cumsum_opacities)*(1-torch.exp(-opacities))
+        return (colors*transp_term[..., None]).sum(1)
+    
+

@@ -93,10 +93,14 @@ class RayDataset(Dataset):
         for image_ind in tqdm(range(len(ordir_rays))):
             for i in range(im_w):
                 for j in range(im_w):
-                    ori = torch.tensor(ordir_rays[image_ind][0][i,j], dtype=torch.float32).to(device)
-                    direct = torch.tensor(ordir_rays[image_ind][1][i,j], dtype=torch.float32).to(device)        
+                    # ori = torch.tensor(ordir_rays[image_ind][0][i,j], dtype=torch.float32).to(device)
+                    # direct = torch.tensor(ordir_rays[image_ind][1][i,j], dtype=torch.float32).to(device)        
+                    # self.tensor_rays.append((ori, direct))
+                    # self.tensor_target_pixels.append(torch.tensor(target_ims[image_ind][i,j], dtype=torch.float32).to(device))
+                    ori = torch.tensor(ordir_rays[image_ind][0][i,j], dtype=torch.float32)
+                    direct = torch.tensor(ordir_rays[image_ind][1][i,j], dtype=torch.float32)    
                     self.tensor_rays.append((ori, direct))
-                    self.tensor_target_pixels.append(torch.tensor(target_ims[image_ind][i,j], dtype=torch.float32).to(device))
+                    self.tensor_target_pixels.append(torch.tensor(target_ims[image_ind][i,j], dtype=torch.float32))
 
     def __getitem__(self, index):
         return self.tensor_rays[index], self.tensor_target_pixels[index]
