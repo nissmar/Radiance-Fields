@@ -81,6 +81,12 @@ def regular_3d_indexes(n):
     k = np.arange(n)
     return np.transpose([np.tile(i, len(j)*len(k)), np.tile(np.repeat(j, len(i)), len(k)), np.repeat(k, len(i)*len(j))])
 
+def rolling_average(p, k=100):
+    p2 = np.zeros((p.shape[0]-k))
+    for i in range(k):
+        p2 += p[i:-(k-i)]
+    return p2/k
+
 # DATASETS
 
 class RayDataset(Dataset):
