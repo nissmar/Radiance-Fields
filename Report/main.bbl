@@ -1,0 +1,35 @@
+\newcommand{\etalchar}[1]{$^{#1}$}
+\begin{thebibliography}{YFKT{\etalchar{+}}21}
+
+\bibitem[KS00]{spacecarving}
+Kiriakos~N Kutulakos and Steven~M Seitz.
+\newblock A theory of shape by space carving.
+\newblock {\em International journal of computer vision}, 38(3):199--218, 2000.
+
+\bibitem[MESK22]{instant}
+Thomas M{\"u}ller, Alex Evans, Christoph Schied, and Alexander Keller.
+\newblock Instant neural graphics primitives with a multiresolution hash
+  encoding.
+\newblock {\em arXiv preprint arXiv:2201.05989}, 2022.
+
+\bibitem[MST{\etalchar{+}}20]{nerf}
+Ben Mildenhall, Pratul~P Srinivasan, Matthew Tancik, Jonathan~T Barron, Ravi
+  Ramamoorthi, and Ren Ng.
+\newblock Nerf: Representing scenes as neural radiance fields for view
+  synthesis.
+\newblock In {\em European conference on computer vision}, pages 405--421.
+  Springer, 2020.
+
+\bibitem[SSC21]{directvoxgo}
+Cheng Sun, Min Sun, and Hwann-Tzong Chen.
+\newblock Direct voxel grid optimization: Super-fast convergence for radiance
+  fields reconstruction.
+\newblock {\em arXiv preprint arXiv:2111.11215}, 2021.
+
+\bibitem[YFKT{\etalchar{+}}21]{plenoxels}
+Alex Yu, Sara Fridovich-Keil, Matthew Tancik, Qinhong Chen, Benjamin Recht, and
+  Angjoo Kanazawa.
+\newblock Plenoxels: Radiance fields without neural networks.
+\newblock {\em arXiv preprint arXiv:2112.05131}, 2021.
+
+\end{thebibliography}
