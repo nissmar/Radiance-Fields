@@ -26,7 +26,7 @@ def get_data(root="../nerf_example_data/nerf_synthetic/lego", stage="train"):
             frame['file_path']) + '.png')
         c2w = frame['transform_matrix']
         im_gt = imageio.imread(fpath).astype(np.float32) / 255.0
-        im_gt = im_gt[..., :3] * im_gt[..., 3:]
+        im_gt = im_gt[..., :3] * im_gt[..., 3:] + (1.0 - im_gt[..., 3:])
         all_c2w.append(c2w)
         all_gt.append(im_gt)
     focal = 0.5 * all_gt[0].shape[1] / np.tan(0.5 * j['camera_angle_x'])
@@ -81,6 +81,12 @@ def regular_3d_indexes(n):
     k = np.arange(n)
     return np.transpose([np.tile(i, len(j)*len(k)), np.tile(np.repeat(j, len(i)), len(k)), np.repeat(k, len(i)*len(j))])
 
+def rolling_average(p, k=100):
+    p2 = np.zeros((p.shape[0]-k))
+    for i in range(k):
+        p2 += p[i:-(k-i)]
+    return p2/k
+
 # DATASETS
 
 class RayDataset(Dataset):
@@ -90,13 +96,17 @@ class RayDataset(Dataset):
         self.tensor_rays = [] # (tuple (origin, first_point))
         self.tensor_target_pixels = []
         
-        for image_ind in tqdm(range(im_w)):
+        for image_ind in tqdm(range(len(ordir_rays))):
             for i in range(im_w):
                 for j in range(im_w):
-                    ori = torch.tensor(ordir_rays[image_ind][0][i,j], dtype=torch.float32).to(device)
-                    direct = torch.tensor(ordir_rays[image_ind][1][i,j], dtype=torch.float32).to(device)        
+                    # ori = torch.tensor(ordir_rays[image_ind][0][i,j], dtype=torch.float32).to(device)
+                    # direct = torch.tensor(ordir_rays[image_ind][1][i,j], dtype=torch.float32).to(device)        
+                    # self.tensor_rays.append((ori, direct))
+                    # self.tensor_target_pixels.append(torch.tensor(target_ims[image_ind][i,j], dtype=torch.float32).to(device))
+                    ori = torch.tensor(ordir_rays[image_ind][0][i,j], dtype=torch.float32)
+                    direct = torch.tensor(ordir_rays[image_ind][1][i,j], dtype=torch.float32)    
                     self.tensor_rays.append((ori, direct))
-                    self.tensor_target_pixels.append(torch.tensor(target_ims[image_ind][i,j], dtype=torch.float32).to(device))
+                    self.tensor_target_pixels.append(torch.tensor(target_ims[image_ind][i,j], dtype=torch.float32))
 
     def __getitem__(self, index):
         return self.tensor_rays[index], self.tensor_target_pixels[index]
