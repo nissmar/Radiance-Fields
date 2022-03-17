@@ -6,6 +6,7 @@ import json
 from torch.utils.data import Dataset
 import torch
 from PIL import Image
+from skimage.metrics import peak_signal_noise_ratio
 
 
 
@@ -87,6 +88,14 @@ def rolling_average(p, k=100):
         p2 += p[i:-(k-i)]
     return p2/k
 
+def compute_psnr(grid, disp_rays_test, disp_ims_test, N_points=500):
+    m = np.zeros(len(disp_ims_test))
+    for i in tqdm(range(len(disp_ims_test))):
+        with torch.no_grad():
+            new_im = grid.render_large_image_from_rays(disp_rays_test[i], (N_points, 1.2))
+            m[i] = peak_signal_noise_ratio(new_im, disp_ims_test[i].astype('float32'))
+    return m.mean()
+    
 # DATASETS
 
 class RayDataset(Dataset):
