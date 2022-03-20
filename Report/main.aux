@@ -26,43 +26,52 @@
 \citation{nerf}
 \citation{plenoxels}
 \babel@aux{english}{}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Our model at epoch {0, 2, 6, 14, 22}. Total computation time: 35 minutes on a single GPU.\relax }}{1}{figure.caption.1}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{fig:lego_optim}{{1}{1}{Our model at epoch {0, 2, 6, 14, 22}. Total computation time: 35 minutes on a single GPU.\relax }{figure.caption.1}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {1}Introduction}{1}{section.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {2}Our implementation}{1}{section.2}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {2.1}Given code}{1}{subsection.2.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Our implementation}{1}{subsection.2.2}\protected@file@percent }
 \citation{spacecarving}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Our implementation}{2}{subsection.2.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}Datasets}{2}{subsection.2.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Test images from the \textit  {nerf\_synthetic} datasets\relax }}{2}{figure.caption.2}\protected@file@percent }
+\newlabel{fig:dataset}{{2}{2}{Test images from the \textit {nerf\_synthetic} datasets\relax }{figure.caption.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {3}Related works}{2}{section.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Classical methods}{2}{subsection.3.1}\protected@file@percent }
 \citation{nerf}
 \citation{directvoxgo}
 \citation{instant}
 \citation{plenoxels}
 \citation{plenoxels}
 \citation{plenoxels}
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}Datasets}{2}{subsection.2.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {3}Related works}{2}{section.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Classical methods}{2}{subsection.3.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}NeRF rendering}{2}{subsection.3.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Concurrent papers and posterior approach}{2}{subsection.3.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {4}The method}{2}{section.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}The voxel grid}{2}{subsection.4.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Color estimation from camera rays}{2}{subsection.4.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}NeRF rendering}{3}{subsection.3.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Concurrent papers and posterior approach}{3}{subsection.3.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4}The method}{3}{section.4}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces  [image source: \cite  {plenoxels}] The plenoxels method is composed of four steps : (a) camera rays are extracted from training images and sampled on a sparse voxel grid ; (b) the spherical harmonics of degree 9 and opacities are computed for each sample through trilinear interpolation ; (c) the resulting colors and opacities are summed to obtain a single pixel value for each ray (d) the mean squared error loss with a total variation regularizer is back-propagated to optimize the grid\relax }}{3}{figure.caption.3}\protected@file@percent }
+\newlabel{fig:plenoxel}{{3}{3}{[image source: \cite {plenoxels}] The plenoxels method is composed of four steps : (a) camera rays are extracted from training images and sampled on a sparse voxel grid ; (b) the spherical harmonics of degree 9 and opacities are computed for each sample through trilinear interpolation ; (c) the resulting colors and opacities are summed to obtain a single pixel value for each ray (d) the mean squared error loss with a total variation regularizer is back-propagated to optimize the grid\relax }{figure.caption.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}The voxel grid}{3}{subsection.4.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Color estimation from camera rays}{4}{subsection.4.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}Optimization}{4}{subsection.4.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {5}Results and experiments}{4}{section.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.1}Results}{4}{subsection.5.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Our models evaluated on novel viewpoints.\relax }}{4}{figure.caption.4}\protected@file@percent }
+\newlabel{fig:results}{{4}{4}{Our models evaluated on novel viewpoints.\relax }{figure.caption.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2}Spherical harmonics}{4}{subsection.5.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.3}Adaptative grid size for faster optimization}{4}{subsection.5.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces  Evolution of the error curve on the microphone model\relax }}{5}{figure.caption.5}\protected@file@percent }
+\newlabel{fig:subd}{{5}{5}{Evolution of the error curve on the microphone model\relax }{figure.caption.5}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {6}Using plenoxels to generate point clouds}{5}{section.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.1}CloudCompare pipeline}{5}{subsection.6.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces Lego and mic models loaded in cloud compare\relax }}{5}{figure.caption.6}\protected@file@percent }
+\newlabel{fig:cc}{{6}{5}{Lego and mic models loaded in cloud compare\relax }{figure.caption.6}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.2}Discussion}{5}{subsection.6.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {7}Conclusion}{5}{section.7}\protected@file@percent }
 \bibstyle{alpha}
 \bibdata{sample}
 \bibcite{spacecarving}{KS00}
-\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces  [image source: \cite  {plenoxels}] We implemented a simpler version of the the full plenoxel pipeline. First we extract camera rays from training images and sample them on a dense (not sparse) voxel grid (a). Then we compute the spherical harmonics (or simply the RGB colors if the desired output is a pointcloud) for each sample through nearest neighbor interpolation (and not trilinear interpolation) (b). Finally we sum the resulting colors and opacities to obtain a single pixel value (c), and optimize it with a total variation regularizer (d).\relax }}{3}{figure.caption.1}\protected@file@percent }
-\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
-\newlabel{fig:plenoxel}{{1}{3}{[image source: \cite {plenoxels}] We implemented a simpler version of the the full plenoxel pipeline. First we extract camera rays from training images and sample them on a dense (not sparse) voxel grid (a). Then we compute the spherical harmonics (or simply the RGB colors if the desired output is a pointcloud) for each sample through nearest neighbor interpolation (and not trilinear interpolation) (b). Finally we sum the resulting colors and opacities to obtain a single pixel value (c), and optimize it with a total variation regularizer (d).\relax }{figure.caption.1}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}Optimization}{3}{subsection.4.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {5}Using plenoxels to generate point clouds}{3}{section.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {5.1}Point cloud generation}{3}{subsection.5.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {5.2}CloudCompare pipeline}{3}{subsection.5.2}\protected@file@percent }
-\newlabel{fig:raw}{{2a}{3}{Corrélations pour la ville 1\relax }{figure.caption.2}{}}
-\newlabel{sub@fig:raw}{{a}{3}{Corrélations pour la ville 1\relax }{figure.caption.2}{}}
-\newlabel{fig:rotated}{{2b}{3}{Corrélations pour la ville 2\relax }{figure.caption.2}{}}
-\newlabel{sub@fig:rotated}{{b}{3}{Corrélations pour la ville 2\relax }{figure.caption.2}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Corrélations entre la surcote et la pression\relax }}{3}{figure.caption.2}\protected@file@percent }
-\newlabel{fig:corr}{{2}{3}{Corrélations entre la surcote et la pression\relax }{figure.caption.2}{}}
 \bibcite{instant}{MESK22}
 \bibcite{nerf}{MST{$^{+}$}20}
 \bibcite{directvoxgo}{SSC21}
 \bibcite{plenoxels}{YFKT{$^{+}$}21}
-\gdef \@abspage@last{4}
+\gdef \@abspage@last{6}
