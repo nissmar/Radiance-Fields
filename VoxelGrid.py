@@ -195,7 +195,8 @@ class VoxelGrid():
         opacities = self.opacities[mesh_coords]*in_bounds.float() # not_in bounds: 0 opacity
         
         opacities = opacities*distances
-        cumsum_opacities = torch.cumsum(opacities, 1)
+        cumsum_opacities = torch.zeros_like(opacities, device=device)
+        cumsum_opacities[:,1:] = torch.cumsum(opacities[:,:-1], 1)
         
         transp_term = torch.exp(-cumsum_opacities)*(1-torch.exp(-opacities))
         return (colors*transp_term[..., None]).sum(1) + torch.exp(-cumsum_opacities[:, -1])[..., None]
@@ -303,7 +304,8 @@ class VoxelGridSpherical(VoxelGrid):
         colors = torch.tensordot(self.colors[mesh_coords],harmonics, dims=([-1], [0]))
         opacities = self.opacities[mesh_coords]*in_bounds.float() # not_in bounds: 0 opacity
         opacities = opacities*distances
-        cumsum_opacities = torch.cumsum(opacities, 1)
+        cumsum_opacities = torch.zeros_like(opacities, device=device)
+        cumsum_opacities[:,1:] = torch.cumsum(opacities[:,:-1], 1)
         transp_term = torch.exp(-cumsum_opacities)*(1-torch.exp(-opacities))
         return (colors*transp_term[..., None]).sum(1) + torch.exp(-cumsum_opacities[:, -1])[..., None]
     
@@ -385,6 +387,15 @@ class VoxelGridInterp(VoxelGrid):
     
 
 class VoxelGridCarve(VoxelGrid):
+    def __init__(self, size=128, bound_w=1, init_op=3):
+        super().__init__(size, bound_w)
+        self.colors_sum = torch.zeros_like(self.opacities)
+        with torch.no_grad():
+            self.opacities[:] = init_op
+            self.colors[:] = 0
+    def subdivide(self):
+        super().subdivide()
+        self.colors_sum = torch.zeros_like(self.opacities)
     def smooth_colors(self):
         with torch.no_grad():
             new_ar = 6*self.colors.clone()
@@ -434,9 +445,12 @@ class VoxelGridCarve(VoxelGrid):
             # meshgrid coordinates
             mesh_coords = self.flatten_3d_indices(inds_3d.long()).long()
             mesh_coords[torch.logical_not(in_bounds)] = 0
+            opacities = self.opacities[mesh_coords]*in_bounds.float() # not_in bounds: 0 opacity
+            opacities = opacities*distances
+            cumsum_opacities = torch.zeros_like(opacities, device=device)
+            cumsum_opacities[:,1:] = torch.cumsum(opacities[:,:-1], 1)
 
-            mesh_coords[self.opacities[mesh_coords]==0] = 0
-            #mesh_coords = mesh_coords[torch.arange(mesh_coords.shape[0]), first_nonzero(mesh_coords)]
-
-            self.colors[mesh_coords,:] = pixels[:, None, :]
-            self.opacities[mesh_coords] = 2
+            transp_term = torch.exp(-cumsum_opacities)*(1-torch.exp(-opacities))
+            
+            self.colors[mesh_coords,:] += transp_term[..., None]*pixels[:, None, :]
+            self.colors_sum[mesh_coords] += transp_term
