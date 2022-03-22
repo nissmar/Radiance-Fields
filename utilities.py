@@ -12,8 +12,7 @@ from skimage.metrics import peak_signal_noise_ratio
 
 
 # FROM PLENOXELS
-
-def get_data(root="../nerf_example_data/nerf_synthetic/lego", stage="train"):
+def get_data(root="../nerf_example_data/nerf_synthetic/lego", stage="train", background=False):
     all_c2w = []
     all_gt = []
 
@@ -27,7 +26,10 @@ def get_data(root="../nerf_example_data/nerf_synthetic/lego", stage="train"):
             frame['file_path']) + '.png')
         c2w = frame['transform_matrix']
         im_gt = imageio.imread(fpath).astype(np.float32) / 255.0
-        im_gt = im_gt[..., :3] * im_gt[..., 3:] + (1.0 - im_gt[..., 3:])
+        if background:
+            im_gt = (im_gt[..., 3:]==0)*1.0
+        else:    
+            im_gt = im_gt[..., :3] * im_gt[..., 3:] + (1.0 - im_gt[..., 3:])
         all_c2w.append(c2w)
         all_gt.append(im_gt)
     focal = 0.5 * all_gt[0].shape[1] / np.tan(0.5 * j['camera_angle_x'])
@@ -106,17 +108,14 @@ class RayDataset(Dataset):
         self.tensor_target_pixels = []
         
         for image_ind in tqdm(range(len(ordir_rays))):
-            for i in range(im_w):
-                for j in range(im_w):
-                    # ori = torch.tensor(ordir_rays[image_ind][0][i,j], dtype=torch.float32).to(device)
-                    # direct = torch.tensor(ordir_rays[image_ind][1][i,j], dtype=torch.float32).to(device)        
-                    # self.tensor_rays.append((ori, direct))
-                    # self.tensor_target_pixels.append(torch.tensor(target_ims[image_ind][i,j], dtype=torch.float32).to(device))
-                    ori = torch.tensor(ordir_rays[image_ind][0][i,j], dtype=torch.float32)
-                    direct = torch.tensor(ordir_rays[image_ind][1][i,j], dtype=torch.float32)    
-                    self.tensor_rays.append((ori, direct))
-                    self.tensor_target_pixels.append(torch.tensor(target_ims[image_ind][i,j], dtype=torch.float32))
-
+            direct = torch.tensor(ordir_rays[image_ind][1], dtype=torch.float32)
+            ori =  torch.tensor(ordir_rays[image_ind][0], dtype=torch.float32)
+            pixels = torch.tensor(target_ims[image_ind], dtype=torch.float32)
+            Lor = list(ori.flatten(0,1))
+            Ldir = list(direct.flatten(0,1))
+            Lpix = list(pixels.flatten(0,1))
+            self.tensor_rays += [(Lor[i], Ldir[i]) for i in range(len(Lor))]
+            self.tensor_target_pixels += Lpix
     def __getitem__(self, index):
         return self.tensor_rays[index], self.tensor_target_pixels[index]
     def __len__(self):

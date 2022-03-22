@@ -195,7 +195,8 @@ class VoxelGrid():
         opacities = self.opacities[mesh_coords]*in_bounds.float() # not_in bounds: 0 opacity
         
         opacities = opacities*distances
-        cumsum_opacities = torch.cumsum(opacities, 1)
+        cumsum_opacities = torch.zeros_like(opacities, device=device)
+        cumsum_opacities[:,1:] = torch.cumsum(opacities[:,:-1], 1)
         
         transp_term = torch.exp(-cumsum_opacities)*(1-torch.exp(-opacities))
         return (colors*transp_term[..., None]).sum(1) + torch.exp(-cumsum_opacities[:, -1])[..., None]
@@ -303,7 +304,8 @@ class VoxelGridSpherical(VoxelGrid):
         colors = torch.tensordot(self.colors[mesh_coords],harmonics, dims=([-1], [0]))
         opacities = self.opacities[mesh_coords]*in_bounds.float() # not_in bounds: 0 opacity
         opacities = opacities*distances
-        cumsum_opacities = torch.cumsum(opacities, 1)
+        cumsum_opacities = torch.zeros_like(opacities, device=device)
+        cumsum_opacities[:,1:] = torch.cumsum(opacities[:,:-1], 1)
         transp_term = torch.exp(-cumsum_opacities)*(1-torch.exp(-opacities))
         return (colors*transp_term[..., None]).sum(1) + torch.exp(-cumsum_opacities[:, -1])[..., None]
     
@@ -317,8 +319,8 @@ class VoxelGridSpherical(VoxelGrid):
         lap_color = laplacian3d(unfolded_colors).sum()
         lap_opacities = laplacian3d(unfolded_opacities).sum() 
         return (lap_color/(3*self.num_harm)+lap_opacities)/(2*self.size**3)
-    
-class VoxelGridSphericalInterp(VoxelGridSpherical):
+
+class VoxelGridInterp(VoxelGrid):
     def in_bounds_indices(self, p):
         ''' input: Nx3 array
             output: index of valid arrays'''
@@ -328,56 +330,127 @@ class VoxelGridSphericalInterp(VoxelGridSpherical):
         return in_x*in_y*in_z
    
     def render_rays(self, ordir_tuple, N_points, inv_depth=1.2):
-        ori = ordir_tuple[0][:, None,:]
-        # WARNING: Assuming constant distance
-        distances = 10*torch.sqrt( (ordir_tuple[1]**2).sum(1, keepdim=True))/inv_depth/(N_points-1)
-        scatter_points = torch.rand_like(distances)*distances + torch.linspace(0,10, N_points, device=device)[None, :]/inv_depth
-        p = ori + scatter_points[:,:,None]*(ordir_tuple[1][:, None, :])
+        with torch.no_grad():
+            ori = ordir_tuple[0][:, None,:]
+            # WARNING: Assuming constant distance
+            distances = 10*torch.sqrt( (ordir_tuple[1]**2).sum(1, keepdim=True))/inv_depth/(N_points-1)
+            scatter_points = torch.rand_like(distances)*distances + torch.linspace(0,10, N_points, device=device)[None, :]/inv_depth
+            p = ori + scatter_points[:,:,None]*(ordir_tuple[1][:, None, :])
+
+            offsets = torch.tensor([[0,0,0], 
+                               [1,0,0], 
+                               [0,0,1],
+                               [1,0,1],
+                               [0,1,0],
+                               [1,1,0],  
+                               [0,1,1],
+                               [1,1,1]], device=device)
+            offsets[:, 1] *= self.size
+            offsets[:, 2] *= self.size**2
+            offsets = offsets.sum(1)
+
         
-        offsets = [np.array([0,0,0]), 
-                   np.array([1,0,0]), 
-                   np.array([0,0,1]),
-                   np.array([1,0,1]),
-                   np.array([0,1,0]),
-                   np.array([1,1,0]),  
-                   np.array([0,1,1]),
-                   np.array([1,1,1])]
-        #indicies
-        p = self.descartes_to_indices(p)   
-        p0 = torch.floor(p)
-        in_bounds = self.in_bounds_indices(p)
-        diff = (p-p0)
-        ind_offsets = []
-        for i in range(8):
-            mesh_coords = self.flatten_3d_indices(p0+torch.tensor(offsets[i]).to(device)).long()
+            #indicies
+            p = self.descartes_to_indices(p)   
+            p0 = torch.floor(p)
+            in_bounds = self.in_bounds_indices(p)
+
+            mesh_coords = self.flatten_3d_indices(p0.long())
             mesh_coords[torch.logical_not(in_bounds)] = 0
-            ind_offsets.append(mesh_coords)
 
+            diff = (p-p0)
+            ind_offsets = []
 
-        harmonics = self.view_harmonics(p[0,0])
-        
-        
-        
+            mcs = []
+            for i in range(8):
+                mcs.append( mesh_coords + offsets[i])                
         # color interp
-        ciii = [torch.tensordot(self.colors[ind_offsets[i]],harmonics, dims=([-1], [0]))
+        ciii = [self.colors[mcs[i]]
                 *(1-diff[...,0, None])+
-                torch.tensordot(self.colors[ind_offsets[i+1]],harmonics, dims=([-1], [0]))
+                self.colors[mcs[i+1]]
                 *diff[...,0, None] for i in range(0,8,2)]
         cii = [ciii[i]*(1-diff[...,1, None]) + ciii[i+2]*diff[...,1, None] for i in [0,1]]
         colors = cii[0]*(1-diff[...,2, None])+cii[1]*diff[...,2, None]
         
         # opacities interp
-        ciii = [self.opacities[ind_offsets[i]]
-                *(1-diff[...,0]) +
-                self.opacities[ind_offsets[i+1]]
+        oiii = [self.opacities[mcs[i]]
+               *(1-diff[...,0]) +
+                self.opacities[mcs[i+1]]
                 *diff[...,0] for i in range(0,8,2)]
-        cii = [ciii[i]*(1-diff[...,1]) + ciii[i+2]*diff[...,1] for i in [0,1]]
-        opacities = (cii[0]*(1-diff[...,2])+cii[1]*diff[...,2])
-        
-        opacities = opacities*distances*in_bounds.float() # REMOVE
+        oii = [oiii[i]*(1-diff[...,1]) + oiii[i+2]*diff[...,1] for i in [0,1]]
+        opacities = (oii[0]*(1-diff[...,2])+oii[1]*diff[...,2])*distances*in_bounds.float() 
+
         cumsum_opacities = torch.cumsum(opacities, 1)
 
         transp_term = torch.exp(-cumsum_opacities)*(1-torch.exp(-opacities))
         return (colors*transp_term[..., None]).sum(1) + torch.exp(-cumsum_opacities[:, -1])[..., None]
     
 
+class VoxelGridCarve(VoxelGrid):
+    def __init__(self, size=128, bound_w=1, init_op=3):
+        super().__init__(size, bound_w)
+        self.colors_sum = torch.zeros_like(self.opacities)
+        with torch.no_grad():
+            self.opacities[:] = init_op
+            self.colors[:] = 0
+    def subdivide(self):
+        super().subdivide()
+        self.colors_sum = torch.zeros_like(self.opacities)
+    def smooth_colors(self):
+        with torch.no_grad():
+            new_ar = 6*self.colors.clone()
+            for disp1 in [1, self.size, self.size**2]:
+                new_ar[:-disp1] +=self.colors[disp1:]
+                new_ar[disp1:] += self.colors[:-disp1]
+            self.colors[:] = new_ar/12
+            
+    def smooth_opacities(self):
+        with torch.no_grad():
+            new_ar = 6*self.opacities.clone()
+            for disp1 in [1, self.size, self.size**2]:
+                new_ar[:-disp1] +=self.opacities[disp1:]
+                new_ar[disp1:] += self.opacities[:-disp1]
+            self.opacities[:] = new_ar/12
+
+    def carve(self, ordir_tuple, N_points, inv_depth=1.2):
+        with torch.no_grad():
+            ori = ordir_tuple[0][:, None,:]
+
+            # WARNING: Assuming constant distance
+            distances = 8/(N_points-1)
+            scatter_points = torch.linspace(0,10, N_points, device=device)[None, :]/inv_depth
+            p = ori + scatter_points[:,:,None]*(ordir_tuple[1][:, None, :])    
+
+            # extract valid indices
+            inds_3d = torch.floor(self.descartes_to_indices(p))
+            in_bounds = self.in_bounds_indices(inds_3d)
+            # meshgrid coordinates
+            mesh_coords = self.flatten_3d_indices(inds_3d.long())
+            mesh_coords[torch.logical_not(in_bounds)] = 0
+            
+            self.opacities[mesh_coords] = 0
+            
+    def color(self, ordir_tuple, pixels, N_points, inv_depth=1.2):
+        with torch.no_grad():
+            ori = ordir_tuple[0][:, None,:]
+
+            # WARNING: Assuming constant distance
+            distances = 8/(N_points-1)
+            scatter_points = torch.linspace(0,10, N_points, device=device)[None, :]/inv_depth
+            p = ori + scatter_points[:,:,None]*(ordir_tuple[1][:, None, :])    
+
+            # extract valid indices
+            inds_3d = torch.floor(self.descartes_to_indices(p))
+            in_bounds = self.in_bounds_indices(inds_3d)
+            # meshgrid coordinates
+            mesh_coords = self.flatten_3d_indices(inds_3d.long()).long()
+            mesh_coords[torch.logical_not(in_bounds)] = 0
+            opacities = self.opacities[mesh_coords]*in_bounds.float() # not_in bounds: 0 opacity
+            opacities = opacities*distances
+            cumsum_opacities = torch.zeros_like(opacities, device=device)
+            cumsum_opacities[:,1:] = torch.cumsum(opacities[:,:-1], 1)
+
+            transp_term = torch.exp(-cumsum_opacities)*(1-torch.exp(-opacities))
+            
+            self.colors[mesh_coords,:] += transp_term[..., None]*pixels[:, None, :]
+            self.colors_sum[mesh_coords] += transp_term
