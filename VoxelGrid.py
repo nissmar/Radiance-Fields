@@ -241,10 +241,10 @@ class VoxelGrid():
 
 
 class VoxelGridSpherical(VoxelGrid):
-    def __init__(self, size=128, bound_w=1, num_harm=4):
+    def __init__(self, size=128, bound_w=1, num_harm=9):
         self.size = size
         self.bound_w = bound_w
-        self.num_harm = 4
+        self.num_harm = num_harm
         self.colors =  Variable(torch.rand((size*size*size,3,num_harm)).to(device), requires_grad=True)
         self.opacities =  Variable(torch.rand((size*size*size)).to(device), requires_grad=True)
 
@@ -273,16 +273,31 @@ class VoxelGridSpherical(VoxelGrid):
             self.opacities = new_opacities
             
 
-    def view_harmonics(self, point):
-        r1 =  torch.sqrt((point**2).sum())
-        r2 = torch.sqrt((point[:2]**2).sum())
-        theta = torch.arcsin(r2/r1).cpu().numpy()
-        phi = torch.arccos(point[0].abs()/r2).cpu().numpy()
-        phi *= 1 if point[1]>0 else -1
-        harmonics = np.array([sph_harm(j,i,theta, phi) 
-                              for i in range(int(np.sqrt(self.num_harm))) 
-                              for j in range(-i,i+1)])
-        return torch.tensor(np.abs(harmonics), dtype=torch.float32, device=device)
+    def view_harmonics(self, points):
+        norm = (points**2).sum(1)
+       
+        points /= norm[:, None]
+        r1 =  torch.ones_like(norm)
+        r2 = torch.sqrt((points[:, :2]**2).sum(1))
+        theta = torch.arcsin(r2/r1)
+        phi = torch.arccos(points[:,0].abs()/r2)
+        phi[points[:,1]<0] *= -1  
+        theta = theta.cpu().numpy()
+        phi = phi.cpu().numpy()
+        harmonics = torch.zeros((points.shape[0], self.num_harm), device=device)
+
+        ind=0
+        for n in range(int(np.sqrt(self.num_harm))):
+            for m in range(-n,n+1):
+                Y = torch.tensor(sph_harm(m,n,theta, phi), device=device)
+                if m < 0:
+                    Y = np.sqrt(2) * Y.imag
+                elif m > 0:
+                    Y = np.sqrt(2) * Y.real
+                harmonics[:, ind] = torch.abs(Y)
+                ind+=1
+        harmonics /= torch.sqrt((harmonics**2).sum(1))[:, None]
+        return harmonics
 
     def render_rays(self, ordir_tuple, N_points, inv_depth=1.2):
         ori = ordir_tuple[0][:, None,:]
@@ -298,10 +313,10 @@ class VoxelGridSpherical(VoxelGrid):
             # meshgrid coordinates
             mesh_coords = self.flatten_3d_indices(inds_3d.long())
             mesh_coords[torch.logical_not(in_bounds)] = 0
-            harmonics = self.view_harmonics(p[0,0])
-
             
-        colors = torch.tensordot(self.colors[mesh_coords],harmonics, dims=([-1], [0]))
+            harmonics = self.view_harmonics(ordir_tuple[1])
+            
+        colors = (harmonics[:, None, None, :]*self.colors[mesh_coords]).sum(-1)
         opacities = self.opacities[mesh_coords]*in_bounds.float() # not_in bounds: 0 opacity
         opacities = opacities*distances
         cumsum_opacities = torch.zeros_like(opacities, device=device)
@@ -454,3 +469,55 @@ class VoxelGridCarve(VoxelGrid):
             
             self.colors[mesh_coords,:] += transp_term[..., None]*pixels[:, None, :]
             self.colors_sum[mesh_coords] += transp_term
+
+class VoxelGridSphericalCarve(VoxelGridSpherical):
+    def __init__(self, size=128, bound_w=1, init_op=3, num_harm=9):
+        super().__init__(size, bound_w, num_harm)
+        self.colors_sum = torch.zeros((self.opacities.shape[0], num_harm), device=device)
+        with torch.no_grad():
+            self.opacities[:] = init_op
+            self.colors[:] = 0
+    def carve(self, ordir_tuple, N_points, inv_depth=1.2):
+        with torch.no_grad():
+            ori = ordir_tuple[0][:, None,:]
+
+            # WARNING: Assuming constant distance
+            distances = 8/(N_points-1)
+            scatter_points = torch.linspace(0,10, N_points, device=device)[None, :]/inv_depth
+            p = ori + scatter_points[:,:,None]*(ordir_tuple[1][:, None, :])    
+
+            # extract valid indices
+            inds_3d = torch.floor(self.descartes_to_indices(p))
+            in_bounds = self.in_bounds_indices(inds_3d)
+            # meshgrid coordinates
+            mesh_coords = self.flatten_3d_indices(inds_3d.long())
+            mesh_coords[torch.logical_not(in_bounds)] = 0
+            
+            self.opacities[mesh_coords] = 0
+            
+    def color(self, ordir_tuple, pixels, N_points, inv_depth=1.2):
+        with torch.no_grad():
+            ori = ordir_tuple[0][:, None,:]
+
+            # WARNING: Assuming constant distance
+            distances = 8/(N_points-1)
+            scatter_points = torch.linspace(0,10, N_points, device=device)[None, :]/inv_depth
+            p = ori + scatter_points[:,:,None]*(ordir_tuple[1][:, None, :])    
+
+            # extract valid indices
+            inds_3d = torch.floor(self.descartes_to_indices(p))
+            in_bounds = self.in_bounds_indices(inds_3d)
+            # meshgrid coordinates
+            mesh_coords = self.flatten_3d_indices(inds_3d.long()).long()
+            mesh_coords[torch.logical_not(in_bounds)] = 0
+            opacities = self.opacities[mesh_coords]*in_bounds.float() # not_in bounds: 0 opacity
+            opacities = opacities*distances
+            cumsum_opacities = torch.zeros_like(opacities, device=device)
+            cumsum_opacities[:,1:] = torch.cumsum(opacities[:,:-1], 1)
+
+            transp_term = torch.exp(-cumsum_opacities)*(1-torch.exp(-opacities))
+            harmonics_base = self.view_harmonics(ordir_tuple[1])
+            harmonics = harmonics_base[:, None, :]*pixels[:,:,None]
+            
+            self.colors[mesh_coords,:] += harmonics[:, None, :,: ]*transp_term[..., None, None]
+            self.colors_sum[mesh_coords] += harmonics_base[:, None, :]*transp_term[..., None]
