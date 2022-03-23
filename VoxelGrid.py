@@ -274,18 +274,23 @@ class VoxelGridSpherical(VoxelGrid):
             
 
     def view_harmonics(self, points):
-        norm = (points**2).sum(1)
-       
+        norm = torch.sqrt((points**2).sum(1))
         points /= norm[:, None]
-        r1 =  torch.ones_like(norm)
         r2 = torch.sqrt((points[:, :2]**2).sum(1))
-        theta = torch.arcsin(r2/r1)
-        phi = torch.arccos(points[:,0].abs()/r2)
-        phi[points[:,1]<0] *= -1  
+        r2 = normalize01(r2, 0, 1) #avoid numerical errors
+        phi = torch.arccos(r2)
+        phi[points[:,2]<0] *= -1
+        phi += np.pi/2
+        r2[r2==0] = 10**-10 
+        diam = points[:,0]/r2
+        diam = normalize01(diam, -1, 1) #avoid numerical errors
+        theta = torch.arccos(diam)
+        theta[points[:,1]<0] *= -1  
+        theta += np.pi
         theta = theta.cpu().numpy()
         phi = phi.cpu().numpy()
         harmonics = torch.zeros((points.shape[0], self.num_harm), device=device)
-
+        
         ind=0
         for n in range(int(np.sqrt(self.num_harm))):
             for m in range(-n,n+1):
@@ -296,7 +301,7 @@ class VoxelGridSpherical(VoxelGrid):
                     Y = np.sqrt(2) * Y.real
                 harmonics[:, ind] = torch.abs(Y)
                 ind+=1
-        harmonics /= torch.sqrt((harmonics**2).sum(1))[:, None]
+        #harmonics /= torch.sqrt((harmonics**2).sum(1))[:, None]
         return harmonics
 
     def render_rays(self, ordir_tuple, N_points, inv_depth=1.2):

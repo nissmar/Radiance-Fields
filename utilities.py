@@ -8,8 +8,7 @@ import torch
 from PIL import Image
 from skimage.metrics import peak_signal_noise_ratio
 
-
-
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 # FROM PLENOXELS
 def get_data(root="../nerf_example_data/nerf_synthetic/lego", stage="train", background=False):
@@ -18,7 +17,7 @@ def get_data(root="../nerf_example_data/nerf_synthetic/lego", stage="train", bac
 
     data_path = os.path.join(root, stage)
     data_json = os.path.join(root, 'transforms_' + stage + '.json')
-    print('LOAD DATA', data_path)
+    #print('LOAD DATA', data_path)
     j = json.load(open(data_json, 'r'))
 
     for frame in tqdm(j['frames']):
@@ -98,6 +97,10 @@ def compute_psnr(grid, disp_rays_test, disp_ims_test, N_points=500):
             m[i] = peak_signal_noise_ratio(new_im, disp_ims_test[i].astype('float32'))
     return m.mean()
     
+def normalize01(t, m=0, M=1):
+    t = torch.minimum(t, torch.tensor(M, device=device))
+    t = torch.maximum(t, torch.tensor(m, device=device))
+    return t 
 # DATASETS
 
 class RayDataset(Dataset):
@@ -174,3 +177,32 @@ def create_rotation_matrices(height, view_angle=-20, n=10):
     
     return [create_rotation_transformation_matrix(cust_centers[i], t[i], np.pi*view_angle/180) for i in range(n)]
 
+# Carving
+
+
+def carve(grid, loader, N_points):
+    for batch_idx, (rays, pixels) in enumerate(tqdm(loader)):
+        rays, pixels = (rays[0].to(device),rays[1].to(device)), pixels.to(device)
+        mask = (pixels==1)
+        grid.carve((rays[0][mask],rays[1][mask]) , N_points)
+
+def color(grid, loader, N_points):
+    for batch_idx, (rays, pixels) in enumerate(tqdm(loader)):
+        rays, pixels = (rays[0].to(device),rays[1].to(device)), pixels.to(device)
+        mask = (pixels==1).all(1)
+        mask = torch.logical_not(mask)
+        grid.color((rays[0][mask],rays[1][mask]), pixels[mask], N_points)
+    with torch.no_grad():
+        mask = grid.colors_sum>0
+        grid.colors[mask] = grid.colors[mask]/(grid.colors_sum[mask, None])
+
+def color_sph(grid, loader, N_points):
+    for batch_idx, (rays, pixels) in enumerate(tqdm(loader)):
+        rays, pixels = (rays[0].to(device),rays[1].to(device)), pixels.to(device)
+        mask = (pixels==1).all(1)
+        mask = torch.logical_not(mask)
+        grid.color((rays[0][mask],rays[1][mask]), pixels[mask], N_points) 
+    with torch.no_grad():
+        mask = grid.colors_sum>0
+        for i in range(3):
+            grid.colors[:,i,:][mask] = grid.colors[:,i,:][mask] /(grid.colors_sum[mask])
