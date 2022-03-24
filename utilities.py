@@ -196,13 +196,21 @@ def color(grid, loader, N_points):
         mask = grid.colors_sum>0
         grid.colors[mask] = grid.colors[mask]/(grid.colors_sum[mask, None])
 
-def color_sph(grid, loader, N_points):
+def color_sph_base(grid, loader, N_points):
     for batch_idx, (rays, pixels) in enumerate(tqdm(loader)):
         rays, pixels = (rays[0].to(device),rays[1].to(device)), pixels.to(device)
         mask = (pixels==1).all(1)
         mask = torch.logical_not(mask)
-        grid.color((rays[0][mask],rays[1][mask]), pixels[mask], N_points) 
+        grid.color((rays[0][mask],rays[1][mask]), pixels[mask], N_points)
     with torch.no_grad():
         mask = grid.colors_sum>0
-        for i in range(3):
-            grid.colors[:,i,:][mask] = grid.colors[:,i,:][mask] /(grid.colors_sum[mask])
+        grid.colors[mask,:,0] = grid.colors[mask,:, 0]/(grid.colors_sum[mask, None])/0.28
+        
+def color_sph_sgd(grid, loader, N_points, lr=1):
+    losses=[]
+    for batch_idx, (rays, pixels) in enumerate(loader):
+        rays, pixels = (rays[0].to(device),rays[1].to(device)), pixels.to(device)
+        mask = (pixels==1).all(1)
+        mask = torch.logical_not(mask)        
+        losses.append(grid.color_sgd((rays[0][mask],rays[1][mask]), pixels[mask], N_points, lr))
+    return losses

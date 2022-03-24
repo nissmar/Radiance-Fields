@@ -278,9 +278,8 @@ class VoxelGridSpherical(VoxelGrid):
         points /= norm[:, None]
         r2 = torch.sqrt((points[:, :2]**2).sum(1))
         r2 = normalize01(r2, 0, 1) #avoid numerical errors
-        phi = torch.arccos(r2)
-        phi[points[:,2]<0] *= -1
-        phi += np.pi/2
+        phi = np.pi/2-torch.arccos(r2)
+        phi[points[:,2]<0] = np.pi-phi[points[:,2]<0] 
         r2[r2==0] = 10**-10 
         diam = points[:,0]/r2
         diam = normalize01(diam, -1, 1) #avoid numerical errors
@@ -290,18 +289,18 @@ class VoxelGridSpherical(VoxelGrid):
         theta = theta.cpu().numpy()
         phi = phi.cpu().numpy()
         harmonics = torch.zeros((points.shape[0], self.num_harm), device=device)
-        
         ind=0
         for n in range(int(np.sqrt(self.num_harm))):
             for m in range(-n,n+1):
-                Y = torch.tensor(sph_harm(m,n,theta, phi), device=device)
+                Y = torch.tensor(sph_harm(abs(m),n,theta, phi), device=device)
                 if m < 0:
-                    Y = np.sqrt(2) * Y.imag
+                    Y = np.sqrt(2) * (-1)**m *  Y.imag
                 elif m > 0:
-                    Y = np.sqrt(2) * Y.real
-                harmonics[:, ind] = torch.abs(Y)
+                    Y = np.sqrt(2) * (-1)**m * Y.real
+                else: 
+                    Y = Y.real
+                harmonics[:, ind] = Y
                 ind+=1
-        #harmonics /= torch.sqrt((harmonics**2).sum(1))[:, None]
         return harmonics
 
     def render_rays(self, ordir_tuple, N_points, inv_depth=1.2):
@@ -478,10 +477,11 @@ class VoxelGridCarve(VoxelGrid):
 class VoxelGridSphericalCarve(VoxelGridSpherical):
     def __init__(self, size=128, bound_w=1, init_op=3, num_harm=9):
         super().__init__(size, bound_w, num_harm)
-        self.colors_sum = torch.zeros((self.opacities.shape[0], num_harm), device=device)
+        self.colors_sum = torch.zeros((self.opacities.shape[0]), device=device)
         with torch.no_grad():
             self.opacities[:] = init_op
             self.colors[:] = 0
+    
     def carve(self, ordir_tuple, N_points, inv_depth=1.2):
         with torch.no_grad():
             ori = ordir_tuple[0][:, None,:]
@@ -500,6 +500,41 @@ class VoxelGridSphericalCarve(VoxelGridSpherical):
             
             self.opacities[mesh_coords] = 0
             
+    
+    def color_sgd(self, ordir_tuple, pixels, N_points, lr=0.1, rand=0.003, inv_depth=1.2):
+        with torch.no_grad():
+            ori = ordir_tuple[0][:, None,:]
+
+            # WARNING: Assuming constant distance
+            distances = 8/(N_points-1)
+            scatter_points = torch.linspace(0,10, N_points, device=device)[None, :]/inv_depth
+            direct = ordir_tuple[1]+torch.randn_like(ordir_tuple[1])*rand
+            p = ori + scatter_points[:,:,None]*(direct[:, None, :])    
+
+            # extract valid indices
+            inds_3d = torch.floor(self.descartes_to_indices(p))
+            in_bounds = self.in_bounds_indices(inds_3d)
+            # meshgrid coordinates
+            mesh_coords = self.flatten_3d_indices(inds_3d.long()).long()
+            mesh_coords[torch.logical_not(in_bounds)] = 0
+            opacities = self.opacities[mesh_coords]*in_bounds.float() # not_in bounds: 0 opacity
+            opacities = opacities*distances
+            cumsum_opacities = torch.zeros_like(opacities, device=device)
+            cumsum_opacities[:,1:] = torch.cumsum(opacities[:,:-1], 1)
+
+            transp_term = (torch.exp(-cumsum_opacities)*(1-torch.exp(-opacities)))[..., None, None]
+            
+           
+            harmonics_base = self.view_harmonics(ordir_tuple[1])
+            
+            
+            
+            colors = self.colors[mesh_coords]    
+            est = (transp_term*colors*harmonics_base[:,None, None, :]).sum(-1).sum(1)
+            grad = (-2*transp_term*harmonics_base[:,None, None, :])*((pixels-est)[:, None, :, None])
+            self.colors[mesh_coords] -= lr*grad
+            return ((est-pixels)**2).mean().item()
+        
     def color(self, ordir_tuple, pixels, N_points, inv_depth=1.2):
         with torch.no_grad():
             ori = ordir_tuple[0][:, None,:]
@@ -521,8 +556,28 @@ class VoxelGridSphericalCarve(VoxelGridSpherical):
             cumsum_opacities[:,1:] = torch.cumsum(opacities[:,:-1], 1)
 
             transp_term = torch.exp(-cumsum_opacities)*(1-torch.exp(-opacities))
-            harmonics_base = self.view_harmonics(ordir_tuple[1])
-            harmonics = harmonics_base[:, None, :]*pixels[:,:,None]
             
-            self.colors[mesh_coords,:] += harmonics[:, None, :,: ]*transp_term[..., None, None]
-            self.colors_sum[mesh_coords] += harmonics_base[:, None, :]*transp_term[..., None]
+            self.colors[mesh_coords,:, 0] += transp_term[..., None]*pixels[:, None, :]
+            self.colors_sum[mesh_coords] += transp_term
+            
+    def smooth_colors(self):
+        with torch.no_grad():
+            new_ar = 6*self.colors.clone()
+            opa_count = 6*(self.opacities!=0)*1.0
+            for disp1 in [1, self.size, self.size**2]:
+                new_ar[:-disp1] += self.colors[disp1:]*(self.opacities[disp1:]!=0)[..., None, None]
+                opa_count[:-disp1] += (self.opacities!=0)[disp1:]
+                new_ar[disp1:] += self.colors[:-disp1]*(self.opacities[:-disp1]!=0)[..., None, None]
+                opa_count[disp1:] += (self.opacities!=0)[:-disp1]
+            for disp1 in [1+self.size, 1-self.size, 1+self.size**2, 1-self.size**2, self.size+self.size**2, self.size-self.size**2]:
+                new_ar[:-disp1] += 1/np.sqrt(2)*self.colors[disp1:]*(self.opacities[disp1:]!=0)[..., None, None]
+                opa_count[:-disp1] += 1/np.sqrt(2)*(self.opacities!=0)[disp1:]
+                new_ar[disp1:] += 1/np.sqrt(2)*self.colors[:-disp1]*(self.opacities[:-disp1]!=0)[..., None, None]
+                opa_count[disp1:] += 1/np.sqrt(2)*(self.opacities!=0)[:-disp1]
+            for disp1 in [1+self.size+self.size**2, 1-self.size+self.size**2, 1+self.size-self.size**2, 1-self.size-self.size**2]:
+                new_ar[:-disp1] += 1/np.sqrt(3)*self.colors[disp1:]*(self.opacities[disp1:]!=0)[..., None, None]
+                opa_count[:-disp1] += 1/np.sqrt(3)*(self.opacities!=0)[disp1:]
+                new_ar[disp1:] += 1/np.sqrt(3)*self.colors[:-disp1]*(self.opacities[:-disp1]!=0)[..., None, None]
+                opa_count[disp1:] += 1/np.sqrt(3)*(self.opacities!=0)[:-disp1]
+            mask = opa_count!=0
+            self.colors[mask] = new_ar[mask]/opa_count[mask, None, None]
