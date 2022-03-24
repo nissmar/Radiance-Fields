@@ -11,6 +11,8 @@ from skimage.metrics import peak_signal_noise_ratio
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 # FROM PLENOXELS
+
+
 def get_data(root="../nerf_example_data/nerf_synthetic/lego", stage="train", background=False):
     all_c2w = []
     all_gt = []
@@ -26,8 +28,8 @@ def get_data(root="../nerf_example_data/nerf_synthetic/lego", stage="train", bac
         c2w = frame['transform_matrix']
         im_gt = imageio.imread(fpath).astype(np.float32) / 255.0
         if background:
-            im_gt = (im_gt[..., 3:]==0)*1.0
-        else:    
+            im_gt = (im_gt[..., 3:] == 0)*1.0
+        else:
             im_gt = im_gt[..., :3] * im_gt[..., 3:] + (1.0 - im_gt[..., 3:])
         all_c2w.append(c2w)
         all_gt.append(im_gt)
@@ -59,23 +61,26 @@ def get_cameras_centers(rays_or_dir):
         centers[i, :] = rays_or_dir[i][0][0, 0]
     return centers
 
+
 def reshape_numpy(arr, red_fac):
-    H,W = arr.shape[:2]
+    H, W = arr.shape[:2]
     im = Image.fromarray(np.uint8(255*arr))
-    im = im.resize((H//red_fac,W//red_fac), Image.ANTIALIAS)
+    im = im.resize((H//red_fac, W//red_fac), Image.ANTIALIAS)
     return np.array(im)/255.0
 
+
 def reduce_data(all_c2w, all_gt, focal, red_fac):
-    H,W = all_gt[0].shape[:2]
-    red_ims = [reshape_numpy(gt,red_fac) for gt in all_gt]
-    
+    H, W = all_gt[0].shape[:2]
+    red_ims = [reshape_numpy(gt, red_fac) for gt in all_gt]
+
     ordir_rays = []
     for c2w in all_c2w:
-        ray_np = get_rays_np(H,W, focal, c2w)
-        oris = ray_np[0][::red_fac,::red_fac]
-        direct = ray_np[1][::red_fac,::red_fac] # direction. optimal fac:3
+        ray_np = get_rays_np(H, W, focal, c2w)
+        oris = ray_np[0][::red_fac, ::red_fac]
+        direct = ray_np[1][::red_fac, ::red_fac]  # direction. optimal fac:3
         ordir_rays.append((oris, direct))
     return red_ims, ordir_rays
+
 
 def regular_3d_indexes(n):
     i = np.arange(n)
@@ -83,48 +88,59 @@ def regular_3d_indexes(n):
     k = np.arange(n)
     return np.transpose([np.tile(i, len(j)*len(k)), np.tile(np.repeat(j, len(i)), len(k)), np.repeat(k, len(i)*len(j))])
 
+
 def rolling_average(p, k=100):
     p2 = np.zeros((p.shape[0]-k))
     for i in range(k):
         p2 += p[i:-(k-i)]
     return p2/k
 
+
 def compute_psnr(grid, disp_rays_test, disp_ims_test, N_points=500):
     m = np.zeros(len(disp_ims_test))
     for i in tqdm(range(len(disp_ims_test))):
         with torch.no_grad():
-            new_im = grid.render_large_image_from_rays(disp_rays_test[i], (N_points, 1.2))
-            m[i] = peak_signal_noise_ratio(new_im, disp_ims_test[i].astype('float32'))
+            new_im = grid.render_large_image_from_rays(
+                disp_rays_test[i], (N_points, 1.2))
+            m[i] = peak_signal_noise_ratio(
+                new_im, disp_ims_test[i].astype('float32'))
     return m.mean()
-    
+
+
 def normalize01(t, m=0, M=1):
     t = torch.minimum(t, torch.tensor(M, device=device))
     t = torch.maximum(t, torch.tensor(m, device=device))
-    return t 
+    return t
 # DATASETS
+
 
 class RayDataset(Dataset):
     def __init__(self, target_ims, ordir_rays, device):
         im_w = target_ims[0].shape[0]
 
-        self.tensor_rays = [] # (tuple (origin, first_point))
+        self.tensor_rays = []  # (tuple (origin, first_point))
         self.tensor_target_pixels = []
-        
+
         for image_ind in range(len(ordir_rays)):
-            direct = torch.tensor(ordir_rays[image_ind][1], dtype=torch.float32)
-            ori =  torch.tensor(ordir_rays[image_ind][0], dtype=torch.float32)
+            direct = torch.tensor(
+                ordir_rays[image_ind][1], dtype=torch.float32)
+            ori = torch.tensor(ordir_rays[image_ind][0], dtype=torch.float32)
             pixels = torch.tensor(target_ims[image_ind], dtype=torch.float32)
-            Lor = list(ori.flatten(0,1))
-            Ldir = list(direct.flatten(0,1))
-            Lpix = list(pixels.flatten(0,1))
+            Lor = list(ori.flatten(0, 1))
+            Ldir = list(direct.flatten(0, 1))
+            Lpix = list(pixels.flatten(0, 1))
             self.tensor_rays += [(Lor[i], Ldir[i]) for i in range(len(Lor))]
             self.tensor_target_pixels += Lpix
+
     def __getitem__(self, index):
         return self.tensor_rays[index], self.tensor_target_pixels[index]
+
     def __len__(self):
         return len(self.tensor_rays)
 
 # FLY around
+
+
 def get_rot_x(angle):
     Rx = np.zeros(shape=(3, 3))
     Rx[0, 0] = 1
@@ -133,6 +149,7 @@ def get_rot_x(angle):
     Rx[2, 1] = np.sin(angle)
     Rx[2, 2] = np.cos(angle)
     return Rx
+
 
 def get_rot_y(angle):
     Ry = np.zeros(shape=(3, 3))
@@ -143,6 +160,7 @@ def get_rot_y(angle):
     Ry[1, 1] = 1
     return Ry
 
+
 def get_rot_z(angle):
     Rz = np.zeros(shape=(3, 3))
     Rz[0, 0] = np.cos(angle)
@@ -150,31 +168,33 @@ def get_rot_z(angle):
     Rz[1, 0] = np.sin(angle)
     Rz[1, 1] = np.cos(angle)
     Rz[2, 2] = 1
-    
+
     return Rz
 
-def create_rotation_transformation_matrix(center, theta=0,phi=0,alpha=0):
-    
+
+def create_rotation_transformation_matrix(center, theta=0, phi=0, alpha=0):
+
     out = np.identity(4)
     net = np.identity(3)
-    
-    for transf, angle in zip([get_rot_y,  get_rot_z,get_rot_x],[alpha, theta+np.pi/2, phi+np.pi/2]):
+
+    for transf, angle in zip([get_rot_y,  get_rot_z, get_rot_x], [alpha, theta+np.pi/2, phi+np.pi/2]):
         net = np.matmul(net, transf(angle))
-        
-    out[:3,:3] = net
+
+    out[:3, :3] = net
     out[:3, -1] = center
     return out
 
+
 def create_rotation_matrices(height, view_angle=-20, n=10):
 
-    t = np.linspace(0,2*np.pi, n+1)[:-1]
-    cust_centers = np.zeros((n,3))
+    t = np.linspace(0, 2*np.pi, n+1)[:-1]
+    cust_centers = np.zeros((n, 3))
 
     radius = np.sqrt(17-height**2)
-    cust_centers[:,0] = np.cos(t)*radius
-    cust_centers[:,1] = np.sin(t)*radius
-    cust_centers[:,2] = height
-    
+    cust_centers[:, 0] = np.cos(t)*radius
+    cust_centers[:, 1] = np.sin(t)*radius
+    cust_centers[:, 2] = height
+
     return [create_rotation_transformation_matrix(cust_centers[i], t[i], np.pi*view_angle/180) for i in range(n)]
 
 # Carving
@@ -182,35 +202,44 @@ def create_rotation_matrices(height, view_angle=-20, n=10):
 
 def carve(grid, loader, N_points):
     for batch_idx, (rays, pixels) in enumerate(tqdm(loader)):
-        rays, pixels = (rays[0].to(device),rays[1].to(device)), pixels.to(device)
-        mask = (pixels==1)
-        grid.carve((rays[0][mask],rays[1][mask]) , N_points)
+        rays, pixels = (rays[0].to(device), rays[1].to(
+            device)), pixels.to(device)
+        mask = (pixels == 1)
+        grid.carve((rays[0][mask], rays[1][mask]), N_points)
+
 
 def color(grid, loader, N_points):
     for batch_idx, (rays, pixels) in enumerate(tqdm(loader)):
-        rays, pixels = (rays[0].to(device),rays[1].to(device)), pixels.to(device)
-        mask = (pixels==1).all(1)
+        rays, pixels = (rays[0].to(device), rays[1].to(
+            device)), pixels.to(device)
+        mask = (pixels == 1).all(1)
         mask = torch.logical_not(mask)
-        grid.color((rays[0][mask],rays[1][mask]), pixels[mask], N_points)
+        grid.color((rays[0][mask], rays[1][mask]), pixels[mask], N_points)
     with torch.no_grad():
-        mask = grid.colors_sum>0
+        mask = grid.colors_sum > 0
         grid.colors[mask] = grid.colors[mask]/(grid.colors_sum[mask, None])
+
 
 def color_sph_base(grid, loader, N_points):
     for batch_idx, (rays, pixels) in enumerate(tqdm(loader)):
-        rays, pixels = (rays[0].to(device),rays[1].to(device)), pixels.to(device)
-        mask = (pixels==1).all(1)
+        rays, pixels = (rays[0].to(device), rays[1].to(
+            device)), pixels.to(device)
+        mask = (pixels == 1).all(1)
         mask = torch.logical_not(mask)
-        grid.color((rays[0][mask],rays[1][mask]), pixels[mask], N_points)
+        grid.color((rays[0][mask], rays[1][mask]), pixels[mask], N_points)
     with torch.no_grad():
-        mask = grid.colors_sum>0
-        grid.colors[mask,:,0] = grid.colors[mask,:, 0]/(grid.colors_sum[mask, None])/0.2821
-        
+        mask = grid.colors_sum > 0
+        grid.colors[mask, :, 0] = grid.colors[mask, :, 0] / \
+            (grid.colors_sum[mask, None])/0.2821
+
+
 def color_sph_sgd(grid, loader, N_points, lr=1):
-    losses=[]
+    losses = []
     for batch_idx, (rays, pixels) in enumerate(loader):
-        rays, pixels = (rays[0].to(device),rays[1].to(device)), pixels.to(device)
-        mask = (pixels==1).all(1)
-        mask = torch.logical_not(mask)        
-        losses.append(grid.color_sgd((rays[0][mask],rays[1][mask]), pixels[mask], N_points, lr))
+        rays, pixels = (rays[0].to(device), rays[1].to(
+            device)), pixels.to(device)
+        mask = (pixels == 1).all(1)
+        mask = torch.logical_not(mask)
+        losses.append(grid.color_sgd(
+            (rays[0][mask], rays[1][mask]), pixels[mask], N_points, lr))
     return losses

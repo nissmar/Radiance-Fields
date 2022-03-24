@@ -36,7 +36,7 @@ train_loader = torch.utils.data.DataLoader(D, batch_size=args.batch_size, shuffl
 
 VG = VoxelGrid(args.initial_size, 1.4)
 
-losses=[]
+losses = []
 
 def train(epoch, optimizer):
     losses=[]
