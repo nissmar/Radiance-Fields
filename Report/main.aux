@@ -19,10 +19,7 @@
 \providecommand\HyField@AuxAddToFields[1]{}
 \providecommand\HyField@AuxAddToCoFields[2]{}
 \citation{plenoxels}
-\citation{nerf}
 \citation{spacecarving}
-\citation{directvoxgo}
-\citation{instant}
 \citation{nerf}
 \citation{plenoxels}
 \providecommand \oddpage@label [2]{}
@@ -41,7 +38,7 @@
 \citation{plenoxels}
 \citation{plenoxels}
 \citation{plenoxels}
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Our implementation}{2}{subsection.2.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Our goals}{2}{subsection.2.2}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {3}Related works}{2}{section.3}\protected@file@percent }
 \newlabel{sec:relat}{{3}{2}{Related works}{section.3}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Classical methods}{2}{subsection.3.1}\protected@file@percent }
@@ -54,40 +51,37 @@
 \newlabel{fig:plenoxel}{{2}{3}{[image source: \cite {plenoxels}] The plenoxels method is composed of four steps : (a) camera rays are extracted from training images and sampled on a sparse voxel grid ; (b) the spherical harmonics of degree 9 and opacities are computed for each sample through trilinear interpolation ; (c) the resulting colors and opacities are summed to obtain a single pixel value for each ray (d) the mean squared error loss with a total variation regularizer is back-propagated to optimize the grid\relax }{figure.caption.2}{}}
 \@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Spherical harmonics of order 1 to 9\relax }}{3}{figure.caption.3}\protected@file@percent }
 \newlabel{fig:sph_harm}{{3}{3}{Spherical harmonics of order 1 to 9\relax }{figure.caption.3}{}}
-\newlabel{sec:extent2}{{4.1}{3}{Voxel grid and spherical harmonics}{figure.caption.3}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Color estimation from camera rays}{3}{subsection.4.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}Optimization}{3}{subsection.4.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}Optimization}{4}{subsection.4.3}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {5}Results and experiments}{4}{section.5}\protected@file@percent }
 \newlabel{sec:results}{{5}{4}{Results and experiments}{section.5}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {5.1}Visual interpretation}{4}{subsection.5.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {5.2}PSNR comparison}{4}{subsection.5.2}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces PSNR on different training methods.\relax }}{4}{table.caption.4}\protected@file@percent }
-\newlabel{tab:psnr}{{1}{4}{PSNR on different training methods.\relax }{table.caption.4}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {5.3}Adaptative grid size for faster optimization}{4}{subsection.5.3}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces  Evolution of the error curve on the microphone model\relax }}{4}{figure.caption.5}\protected@file@percent }
-\newlabel{fig:subd}{{4}{4}{Evolution of the error curve on the microphone model\relax }{figure.caption.5}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces  Evolution of the error curve on the microphone model\relax }}{4}{figure.caption.4}\protected@file@percent }
+\newlabel{fig:subd}{{4}{4}{Evolution of the error curve on the microphone model\relax }{figure.caption.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.4}Using plenoxels to generate point clouds: CloudCompare pipeline}{4}{subsection.5.4}\protected@file@percent }
 \citation{spacecarving}
-\@writefile{toc}{\contentsline {subsection}{\numberline {5.4}Using plenoxels to generate point clouds: CloudCompare pipeline}{5}{subsection.5.4}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Lego and mic models loaded in cloud compare\relax }}{5}{figure.caption.6}\protected@file@percent }
-\newlabel{fig:cc}{{5}{5}{Lego and mic models loaded in cloud compare\relax }{figure.caption.6}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Lego and mic models loaded in cloud compare\relax }}{5}{figure.caption.5}\protected@file@percent }
+\newlabel{fig:cc}{{5}{5}{Lego and mic models loaded in cloud compare\relax }{figure.caption.5}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {6}First extension: deterministic voxel grid optimization}{5}{section.6}\protected@file@percent }
 \newlabel{sec:extent}{{6}{5}{First extension: deterministic voxel grid optimization}{section.6}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {6.1}The idea}{5}{subsection.6.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {6.2}Results}{5}{subsection.6.2}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces Chair and ficus models obtained with our method\relax }}{6}{figure.caption.7}\protected@file@percent }
-\newlabel{fig:cc2}{{6}{6}{Chair and ficus models obtained with our method\relax }{figure.caption.7}{}}
-\newlabel{fig:legod3}{{6.2}{6}{Results}{figure.caption.7}{}}
-\newlabel{fig:legod1}{{7a}{6}{The full model\relax }{figure.caption.8}{}}
-\newlabel{sub@fig:legod1}{{a}{6}{The full model\relax }{figure.caption.8}{}}
-\newlabel{fig:legod2}{{7b}{6}{Each voxel is colored \relax }{figure.caption.8}{}}
-\newlabel{sub@fig:legod2}{{b}{6}{Each voxel is colored \relax }{figure.caption.8}{}}
-\newlabel{fig:legod3}{{7c}{6}{Concave shaped are filled\relax }{figure.caption.8}{}}
-\newlabel{sub@fig:legod3}{{c}{6}{Concave shaped are filled\relax }{figure.caption.8}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Details of our the lego model\relax }}{6}{figure.caption.8}\protected@file@percent }
-\newlabel{fig:ourccdetail}{{7}{6}{Details of our the lego model\relax }{figure.caption.8}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces Chair and ficus models obtained with our method\relax }}{6}{figure.caption.6}\protected@file@percent }
+\newlabel{fig:cc2}{{6}{6}{Chair and ficus models obtained with our method\relax }{figure.caption.6}{}}
+\newlabel{fig:legod1}{{7a}{6}{The full model\relax }{figure.caption.7}{}}
+\newlabel{sub@fig:legod1}{{a}{6}{The full model\relax }{figure.caption.7}{}}
+\newlabel{fig:legod2}{{7b}{6}{Each voxel is colored \relax }{figure.caption.7}{}}
+\newlabel{sub@fig:legod2}{{b}{6}{Each voxel is colored \relax }{figure.caption.7}{}}
+\newlabel{fig:legod3}{{7c}{6}{Concave shaped are filled\relax }{figure.caption.7}{}}
+\newlabel{sub@fig:legod3}{{c}{6}{Concave shaped are filled\relax }{figure.caption.7}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Details of our the lego model\relax }}{6}{figure.caption.7}\protected@file@percent }
+\newlabel{fig:ourccdetail}{{7}{6}{Details of our the lego model\relax }{figure.caption.7}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {7}Second extension: quick spherical harmonics}{6}{section.7}\protected@file@percent }
 \newlabel{sec:extent2}{{7}{6}{Second extension: quick spherical harmonics}{section.7}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {8}Conclusion}{6}{section.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.1}The idea}{6}{subsection.7.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.2}Results}{6}{subsection.7.2}\protected@file@percent }
 \bibstyle{alpha}
 \bibdata{sample}
 \bibcite{spacecarving}{KS00}
@@ -95,6 +89,9 @@
 \bibcite{nerf}{MST{$^{+}$}20}
 \bibcite{directvoxgo}{SSC21}
 \bibcite{plenoxels}{YFKT{$^{+}$}21}
+\@writefile{toc}{\contentsline {section}{\numberline {8}Conclusion}{7}{section.8}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces PSNR on different training methods.\relax }}{7}{table.caption.9}\protected@file@percent }
+\newlabel{tab:psnr}{{1}{7}{PSNR on different training methods.\relax }{table.caption.9}{}}
 \@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces  Our models evaluated on novel test views\relax }}{8}{figure.caption.10}\protected@file@percent }
 \newlabel{fig:bigresults}{{8}{8}{Our models evaluated on novel test views\relax }{figure.caption.10}{}}
 \gdef \@abspage@last{8}

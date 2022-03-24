@@ -52,19 +52,13 @@
 
 
 \begin{abstract}
-\lipsum[1]
-\cite{plenoxels}
-\cite{nerf}
-\cite{spacecarving}
-\cite{directvoxgo}
-\cite{instant}
+This project report is a study of the article \textbf{Plenoxels: Radiance Fields without Neural Networks} \cite{plenoxels}. Being in the impossibility of using the provided custom CUDA kernel, we have re-implemented the method and a few of the proposed optimizations from scratch. Limiting ourselves to a small 128-sized grid, our implementation achieves a peak-signal-to-noise ratio of $22.10$ dB, not so far from the $23.74$ dB mentioned in the article with a similar setting. Inspired by \textbf{Space carving} \cite{spacecarving}, we show that this method can be extended to generate clean point clouds from photographs, and propose a different optimization method, which achieves a PSNR of $22.90$ dB. We strongly urge the reader to visit our GitHub repository\footnote{\url{https://github.com/nissmar/Radiance-Fields}} which contains animated GIFs, allowing a better understanding of our results (which are on the last page of this report).
 \end{abstract}
 
 
 \section{Introduction}
 
-The most straightforward way to capture 3D objects from the real world is to use special sensors such as the Kinect or more expensive scanning devices. Another approach relies solely on RGB images: by combining photographs taken at several known viewpoints, one is able to render novel views of a scene. A year ago, a method known as \textit{NeRF} (for Neural Radiance Field \cite{nerf}) tackled this challenge by using a deep neural network to simultaneously shapes and shadings. More recently, a new approach known as \textit{Plenoxels} \cite{plenoxels} showed that directly optimizing a voxel grid allowed better results with faster computations. This project is focused on this paper. In Section \ref{sec:ourimp} we give an overview of our implementation, we review relevant related works in Section \ref{sec:relat}, we present the method and our results in Sections \ref{sec:method} and \ref{sec:results}, and finally, in Section \ref{sec:extent}, we propose our own extension of this method to obtain better point clouds.
-\footnote{\url{https://github.com/nissmar/Radiance-Fields}}
+The most straightforward way to capture 3D objects from the real world is to use special sensors such as the Kinect or more expensive scanning devices. Another approach relies solely on RGB images: by combining photographs taken at several known viewpoints, one is able to render novel views of a scene. A year ago, a method known as \textit{NeRF} (for Neural Radiance Field \cite{nerf}) tackled this challenge by using a deep neural network to simultaneously render shapes and shadings. More recently, a new approach known as \textit{Plenoxels} \cite{plenoxels} showed that directly optimizing a voxel grid allowed better results with faster computations. This project is focused on this paper. In Section \ref{sec:ourimp} we give an overview of our implementation, we review relevant related works in Section \ref{sec:relat}, we present the method and our results in Sections \ref{sec:method} and \ref{sec:results}, and finally, in Section \ref{sec:extent} and \ref{sec:extent2}, we propose our own extension of this method to obtain better point clouds.
 
 \section{Our implementation}\label{sec:ourimp}
 
@@ -73,14 +67,14 @@ The most straightforward way to capture 3D objects from the real world is to use
 
 The given code associated to the plenoxels paper requires the compilation of a custom CUDA extension which parallelizes operations. Unfortunately, it requires a CuDNN developer account and quite a bit of C++ experience. In order to avoid losing time on hazardous compilations, we decided to ignore the given code and re-implement everything \textbf{from scratch}, except for the utilities functions \textit{get\_data} and \textit{get\_rays\_np} (30 lines of code) from the original plenoxels repository \footnote{\url{https://github.com/sarafridov/plenoxels}} and the Python file \textit{ply.py}, given in the TP of this course.  
 
-\subsection{Our implementation}
+We work on the \textit{nerf\_synthetic} dataset, composed of 8 virtual objects (see Figure \ref{fig:bigresults}).
+
+\subsection{Our goals}
 
 
-Since our implementation is "homemade", it doesn't contain every extension described in the paper. It is slower (because it doesn't use a custom CUDA kernel) but still usable in finite time: a simple 128x128x128 grid can be trained in TODO minutes. 
+The Plenoxels paper introduces remarkable concepts and the given implementation is no less great: the custom CUDA kernel parrelize across rays, which allow a different number of active voxel for each ray and much faster computations. Reproducing the results was a challenge, and improving the given method (in terms of speed or quality of results) was impossible in the scope of this project.
 
-The Plenoxel paper introduces remarkable concepts and the given implementation is no less great: the custom CUDA kernel parrelize across rays, which allow a different number of active voxel for each ray and much faster computations. Reproducing the results was a challenge, and improving the given method (in terms of speed or quality of results) was impossible in the scope of this project. TODO dernière approche.
-% However, we found a way to extend this approach by integrating a point cloud export to the code, which links this project to the NPM3D course.   
-We used the \textit{nerf\_synthetic} dataset, composed of 8 virtual objects (see Figure \ref{fig:bigresults}).
+We thus decided to work with the following constrains: limit ourselves to 128x128x128 size grids (anything bigger is too slow to train with regular tensor multiplications) and measure our results with a reasonable training time (we didn't see the point of day-long optimizations and thus limited ourselves to 30 minutes of training).
 
 \section{Related works}\label{sec:relat}
 
@@ -159,7 +153,7 @@ The clever idea of Plenoxels is to optimize a voxel grid directly. Each voxel st
 \end{figure}
 
 
-The original paper uses a sparse voxel grid optimized with the custom CUDA implementation. Ours is a dense voxel grid which which justifies the lower definition (128x128x128 vs 512x512x512) and the longer computation time. We experimented with spherical harmonics of degree 1 (each voxel has a single color), and 9, but the latter was to slow to trained. We used spherical harmonics in our extension (Section \label{sec:extent2}).
+The original paper uses a sparse voxel grid optimized with the custom CUDA implementation. Ours is a dense voxel grid which which justifies the lower definition (128x128x128 vs 512x512x512) and the longer computation time. We experimented with spherical harmonics of degree 1 (each voxel has a single color), and 9, but the latter was to slow to trained. The Plenoxels paper doesn't give the detail of which harmonics they're using, and even though the ones on Figure \ref{fig:plenoxel} seem to have values in [0,1], we believe they use spherical harmonics with values in [-1,1] (Figure \ref{fig:sph_harm}). These are the ones we use in our extension (Section \ref{sec:extent2}).
 
 \subsection{Color estimation from camera rays}
 
@@ -220,32 +214,11 @@ The loss is the Mean Squared Error: $L = \sum_{p_x} \|p_x -\hat{c}(r(p_x)) \|^2 
 %    \label{fig:results}
 %\end{figure}
 
-The result of our plenoxel implementation is visible in Figure \ref{fig:bigresults}, in the column \textit{Voxel Grid}. Considering the fact that we couldn't use a custom CUDA kernel, we are quite satisfied with our results. They are visually plausible, even though at slight blur is sometimes noticeable. As we use spherical harmonics of degree 1, specular effects aren't rendered, and perhaps that is why some surfaces are semi-transparent. Visually, the ship is the least realistic: because of its small details, a grid of size 128x128x128 isn't sufficient to represent it. We were impressed with the mic and its semi-transparent wire mesh.
+The result of our Plenoxels implementation is visible in Figure \ref{fig:bigresults} (at the end of this report, in the column \textit{Voxel Grid}). Considering the fact that we couldn't use a custom CUDA kernel, we are quite satisfied with our results. They are visually plausible, even though at slight blur is noticeable: as we use spherical harmonics of degree 1, specular effects aren't rendered, and we believe this blur minimizes the color variations. Visually, the ship is the least realistic: because of its small details, a grid of size 128x128x128 isn't sufficient to represent it. We were impressed with the mic and its semi-transparent wire mesh.
 
 \subsection{PSNR comparison}
 
-The PSNR (for peak signal to noise ratio), defined as $PSNR = 10\log_{10}(1/MSE)$, is an image metric often used in image restoration. In this context, novel test views are used to compare the rendered model and the real image. In the original paper, a score of $23.74$ dB is reached with a 128x128x128 grid and nearest neighbor interpolation. We obtain a score of $22.10$ dB (see Table \ref{tab:psnr}). We are quite satisfied with this result, considering the fact that we only use spherical harmonics of order 1. We verified a statement of the paper: TV regularization doesn't bring better results in those synthetic scenes. Surprisingly, the ficus has a higher PSNR than the chair, although the latter looks much better: this metric compares pixel values, and not shape consistency. 
-
-\begin{table}[!h]
-\centering
-\begin{tabular}{|l||c|r|}
-\hline
-Dataset & TV (30 min training) & No TV (30 min training) \\\hline
-Drums & 20.12 dB & 20.12 dB \\
-Chair & 23.69 dB & 23.70 dB \\ 
-Ship & 20.65  dB & 20.66 dB\\
-Ficus & 23.86 dB & 23.85 dB\\
-HotDog &  23.79 dB &  23.75 dB  \\
-Materials &  20.98 dB &  20.99 dB \\
-Lego &   21.43 dB &  21.42 dB  \\
-Mic &  22.32 dB & 22.29 dB \\
-
-\hline \hline
-Mean & 22.10 ± 1.4  dB & 22.10 ± 1.4 dB \\
-\hline 
-\end{tabular}
-\caption{\label{tab:psnr}PSNR on different training methods.}
-\end{table}
+The PSNR (for peak signal to noise ratio), defined as $PSNR = 10\log_{10}(1/MSE)$, is an image metric often used in image restoration. In this context, novel test views are used to compare the rendered model and the real image. In the original paper, a score of $23.73$ dB is reached with a 128x128x128 grid and nearest neighbor interpolation. We obtain a score of $22.10$ dB (see Table \ref{tab:psnr}). We are quite satisfied with this result, considering the fact that we only use spherical harmonics of order 1. We verified a statement of the paper: TV regularization doesn't bring better results in those synthetic scenes. Surprisingly, the ficus has a higher PSNR than the chair, although the latter looks much better: this metric compares pixel values, and not shape consistency. 
 
 \subsection{Adaptative grid size for faster optimization}
 
@@ -287,7 +260,7 @@ In the paper, they subdivide the voxel grid via tri-linear interpolation to boos
 
 A point cloud can be seen as a voxel grid with discrete (0 or 1) opacities. We implemented a \textit{.ply} export of our voxel grids, storing the RGB colors and the opacity as a scalar field. 
 
-The point cloud is then loaded in CloudCompare. We found that applying the following transformations helped clean the result:
+We found that applying the following transformations helped clean the result in CloudCompare:
 
 \begin{itemize}
 \item \textbf{Edit $>$ Scalar fields $>$ Filter by value} (Range $2.0; +\infty$) to remove the transparent voxels
@@ -296,13 +269,13 @@ The point cloud is then loaded in CloudCompare. We found that applying the follo
 \end{itemize}
 
 
-The optimal parameters may vary for each model (little less value filter for the lego model, little more noise filter for the hotdog model..). Although the colors are transferred efficiently, the shape is imprecise as the opacities aren't binary: some white cloud remain (for instance on the arm of the chair), and filtering them may lead to the destruction of tiny details (such as the leaves of the ficus). We imagined and implemented a new method to obtain better quality results: this is what we'll see now.
+The optimal parameters may vary for each model (little less value filter for the lego model, little more noise filter for the hotdog model..). Although the colors are transferred efficiently, the shape is imprecise as the opacities aren't binary: some white clouds remain (for instance on the arm of the chair), and filtering them may lead to the destruction of tiny details (such as the leaves of the ficus). We imagined and implemented a new method to obtain better quality results: this is what we'll see now.
 
 \section{First extension: deterministic voxel grid optimization}\label{sec:extent}
 
 \subsection{The idea}
 
-Since the \textit{nerf\_synthetic} photographs have a transparent background, some of the rays shouldn't hit any voxels (we call them \textit{transparent rays}). First we set every opacity to a constant $\sigma$ (we set it fairly high to have a almost opaque voxels). Then we remove the voxels which are on the path of transparent rays (note that this idea is a simpler version of space carving \cite{spacecarving}). Once the voxel grid has been carved, we must add the colors. Instead of using the complicated loss $L = \sum_{p_x} \|p_x -\hat{c}(r(p_x)) \|^2$, we average the colors of the corresponding pixels, with weights proportional to the opacity in each visit. The formula is $\tilde{c_v} = \frac{ \sum_{r \in R_v} T_{i,r}  (1 - \exp(-\sigma \delta_i)) p_r }{ \sum_{r \in R_v} T_{i,r}  (1 - \exp(-\sigma \delta_i))  }$ where $R_v$ is the set of all rays passing through voxel $v$. This method is lightning fast, as it requires only 2 passes through the dataset to obtain the final shape: a 128x128x128 grid can be obtained in 1 minute 30.
+Since the \textit{nerf\_synthetic} photographs have a transparent background, some of the rays shouldn't hit any voxels (we call them \textit{transparent rays}). Inspired by space carving \cite{spacecarving}, we implemented an algorithm to filter them. First we set every opacity to a constant $\sigma$ (we set it fairly high to have almost opaque voxels). Then we remove the voxels which are on the path of transparent rays. Once the voxel grid has been carved, the colors are added: instead of optimizing the complicated loss $L = \sum_{p_x} \|p_x -\hat{c}(r(p_x)) \|^2$, we average the colors of the corresponding pixels, with weights proportional to the opacity in each visit. We found that using $\tilde{c_v} = \frac{ \sum_{r \in R_v} T_{i,r}  (1 - \exp(-\sigma \delta_i)) p_r }{ \sum_{r \in R_v} T_{i,r}  (1 - \exp(-\sigma \delta_i))  }$ where $R_v$ is the set of all rays passing through voxel $v$, yielded the best results. This method is lightning fast, as it requires only 2 passes through the dataset to obtain the final shape: a 128x128x128 grid can be obtained in 1 minute (the relevant python file is \textit{main\_carve.py}).
 
 \subsection{Results}
 
@@ -328,7 +301,7 @@ Since the \textit{nerf\_synthetic} photographs have a transparent background, so
     \label{fig:cc2}
 \end{figure}
 
-The obtained pointclouds are much cleaner and usable (Figure \ref{fig:cc2}), although some artifacts may appear (for instance the wheels of the lego model, Figure \ref{fig:ourccdetail}). Since the color of every voxel $\tilde{c_v}$ is estimated, the whole material is colored (Figure \ref{fig:legod2}). In the concave parts of the model, the voxels aren't removed, which leads to inaccuracies (Figure \label{fig:legod3}). Even if the user doesn't need a point cloud, this approach shows the visible voxels in the training set: we believe it can be useful to create new scenes with the correct amount of photographs. Even for real objects, transparent backgrounds can be easily obtained with segmentation tools. 
+The obtained pointclouds are much cleaner and usable (Figure \ref{fig:cc2}), although some artifacts may appear (for instance on the wheels of the lego model, Figure \ref{fig:ourccdetail}). Since the color of every voxel $\tilde{c_v}$ is estimated, the whole material is colored (Figure \ref{fig:legod2}), which we believe is more robust. In the concave parts of the model, the voxels aren't removed, which leads to inaccuracies (Figure \ref{fig:legod3}). Even if the user doesn't need a point cloud, this approach shows clearly which voxels are visible in the training set: we believe it can be useful to create new nerf-compatible scenes. Working with transparent backgrounds shouldn't be an issue: even for real objects they can be easily obtained with segmentation tools. 
 
 
 \begin{figure}[!h]
@@ -353,12 +326,48 @@ The efficiency of that method made using spherical harmonics possible: this is w
 
 \section{Second extension: quick spherical harmonics}\label{sec:extent2}
 
-The second algorithm extends the one described in the previous section: the first steps are identical, with the exception of setting the first spherical harmonics of the whole color of the pixel (note that in this case each voxel stores 9x3 coefficients instead of just 3). Since we have set the opacities to a high value, we can consider that each voxel is either transparent or visible. The loss becomes $L = \sum_{p_x} \|p_x -\hat{c}(r(p_x)) \|^2 = \sum_{v} \sum_{p_x hitting v} (p_x - S_{r(p_x)}^T c_v)^2$. For each voxel and each ray, the gradient can be computed, and is equal to $ -2 S_{r(p_x)} (p_x - S_{r(p_x)}^T c_v)^T$. This fastens up computations, and we optimize our grid directly with SGD and a decaying learning rate going from 1 to TODO.
+\subsection{The idea}
+The second algorithm extends the one described in the previous section: the first steps are identical, with the exception of setting the first spherical harmonics instead of the whole color of the pixel (note that in this case each voxel stores 9x3 coefficients). Since we have set the opacities to a high value, we can consider that each voxel is either transparent or visible. The pseudo-loss is $L = \sum_{v} \sum_{p_x hitting v} \|p_x - S_{r(p_x)}^T c_v\|^2$. For each voxel and each ray, the gradient can be computed, and is equal to $ -2 S_{r(p_x)} (p_x - S_{r(p_x)}^T c_v)^T$. This fastens up computations, and we optimize our grid directly with SGD and a decaying learning rate going from 0.9 to 0.1.
+
+\subsection{Results}
+
+The results can be seen in Figure \ref{fig:bigresults}. The results are a massive improvement from the previous two methods as the objects are more vivid and better defined. The specular properties of the chair's ornaments, the bronze-like material, the mic and its handle are rendered. There is one phenomenon we didn't expect: the spherical harmonics "trick" the viewer and make some objects disappear depending on the angle: it's the case for the lego's wheel, the side of the ship's box...  These improvements are confirmed by the PSNR (see Table \ref{tab:psnr}), as they're the highest of all our tests. 
+
+\newpage
 
 \section{Conclusion}
-\newpage
+
+Re-implementing Plenoxels from scratch was definitely a challenge: their using of a non-standard CUDA kernel should have warned us of the underlying complexity. As the algorithm relies on an optimization, mistakes often go unnoticed and the debugging is particularly hard. We are quite satisfied with the results we obtained, close in PSNR to the results obtained in the article with a 128 grid and nearest-neighbor interpolation.
+
+We expected that their method would easily translate to point cloud generation, but it isn't the case: as shown in the last section, we believe it's because the differentiable rendering only creates a mere \textit{illusion} of shape. Our extensions mitigate this problem, although they aren't able to carve out concavities in the rendered objects.
+
+A possible extension to our work would be to merge the two approaches, and start the plenoxels optimization from an already carved grid.
+
+
 \bibliographystyle{alpha}
 \bibliography{sample}
+
+\begin{table}[!h]
+\centering
+\begin{tabular}{|l||c|c|c|r|}
+\hline
+Dataset & VoxelGrid + TV & VoxelGrid & VoxelGridCarve & VoxelGridSphericalCarve \\\hline
+Drums & 20.12 dB & 20.12 dB  & 19.32 dB & 19.72 dB\\
+Chair & 23.69 dB & 23.70 dB & 24.22 dB & 26.94 dB \\ 
+Ship & 20.65  dB & 20.66 dB & 20.25 dB &  21.91 dB\\
+Ficus & 23.86 dB & 23.85 dB & 21.90 dB & 21.66 dB\\
+HotDog &  23.79 dB &  23.75 dB & 23.45 dB & 25.99 dB  \\
+Materials &  20.98 dB &  20.99 dB & 19.715 dB & 22.41 dB \\
+Lego &   21.43 dB &  21.42 dB  & 20.72 dB & 22.94 dB \\
+Mic &  22.32 dB & 22.29 dB  & 20.63 dB & 21.62 dB\\
+\hline 
+Mean & 22.10 ± 1.41  dB & 22.10 ± 1.41 dB & 21.28 ± 1.65 dB & 22.90 ± 2.24 dB \\
+\hline\hline
+Training Time & 35 minutes & 35 minutes & 1 minute & 4 minutes \\
+\hline 
+\end{tabular}
+\caption{\label{tab:psnr}PSNR on different training methods.}
+\end{table}
 
 \newpage
 
@@ -367,27 +376,27 @@ The second algorithm extends the one described in the previous section: the firs
 \begin{figure}
 \centering
 \begin{tabular}{cccc}
-Ground truth & Voxel Grid & Voxel Carve & VoxelCarve Spherical \\
+Ground truth & VoxelGrid & VoxelGridCarve & VoxelGridSphericalCarve \\
        
        
-\animage[figs/comp/chair.png]  & \animage[figs/comp/vg_chair.png] & \animage[figs/comp/vgc_chair.png] & \animage[figs/comp/drums.png] \\
+\animage[figs/comp/chair.png]  & \animage[figs/comp/vg_chair.png] & \animage[figs/comp/vgc_chair.png] & \animage[figs/comp/vgcs_chair.png] \\
 
-\animage[figs/comp/materials.png]  & \animage[figs/comp/vg_materials.png] & \animage[figs/comp/vgc_materials.png] & \animage[figs/comp/drums.png] \\
+\animage[figs/comp/materials.png]  & \animage[figs/comp/vg_materials.png] & \animage[figs/comp/vgc_materials.png] & \animage[figs/comp/vgcs_materials.png] \\
 
-\animage[figs/comp/mic.png]  & \animage[figs/comp/vg_mic.png] & \animage[figs/comp/vgc_mic.png] & \animage[figs/comp/drums.png] \\
-
-
-\animage[figs/comp/lego.png]  & \animage[figs/comp/vg_lego.png] & \animage[figs/comp/vgc_lego.png] & \animage[figs/comp/drums.png] \\
-
-\animage[figs/comp/drums.png]  & \animage[figs/comp/vg_drums.png] & \animage[figs/comp/vgc_drums.png] & \animage[figs/comp/ship.png] \\
-
-\animage[figs/comp/ficus.png]  & \animage[figs/comp/vg_ficus.png] & \animage[figs/comp/vgc_ficus.png] & \animage[figs/comp/drums.png] \\
+\animage[figs/comp/mic.png]  & \animage[figs/comp/vg_mic.png] & \animage[figs/comp/vgc_mic.png] & \animage[figs/comp/vgcs_mic.png] \\
 
 
-\animage[figs/comp/hotdog.png]  & \animage[figs/comp/vg_hotdog.png] & \animage[figs/comp/vgc_hotdog.png] & \animage[figs/comp/drums.png] \\
+\animage[figs/comp/lego.png]  & \animage[figs/comp/vg_lego.png] & \animage[figs/comp/vgc_lego.png] & \animage[figs/comp/vgcs_lego.png] \\
+
+\animage[figs/comp/drums.png]  & \animage[figs/comp/vg_drums.png] & \animage[figs/comp/vgc_drums.png] & \animage[figs/comp/vgcs_drums.png] \\
+
+\animage[figs/comp/ficus.png]  & \animage[figs/comp/vg_ficus.png] & \animage[figs/comp/vgc_ficus.png] & \animage[figs/comp/vgcs_ficus.png] \\
 
 
-\animage[figs/comp/ship.png]  & \animage[figs/comp/vg_ship.png] & \animage[figs/comp/vgc_ship.png] & \animage[figs/comp/drums.png] \\
+\animage[figs/comp/hotdog.png]  & \animage[figs/comp/vg_hotdog.png] & \animage[figs/comp/vgc_hotdog.png] & \animage[figs/comp/vgcs_hotdog.png] \\
+
+
+\animage[figs/comp/ship.png]  & \animage[figs/comp/vg_ship.png] & \animage[figs/comp/vgc_ship.png] & \animage[figs/comp/vgcs_ship.png] \\
 \end{tabular}
 \caption{\label{fig:bigresults} Our models evaluated on novel test views}
 \end{figure}
