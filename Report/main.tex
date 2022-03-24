@@ -15,7 +15,8 @@
 \usepackage{caption}
 \usepackage{subcaption}
 \usepackage{lipsum} 
-
+\usepackage{adjustbox}
+\usepackage{pgffor}
 \title{Plenoxels and extension to point clouds}
 \author{Nissim Maruani}
 
@@ -51,7 +52,7 @@
 
 
 \begin{abstract}
-
+\lipsum[1]
 \cite{plenoxels}
 \cite{nerf}
 \cite{spacecarving}
@@ -62,10 +63,10 @@
 
 \section{Introduction}
 
-The most straightforward way to capture 3D objects from the real world is to use special sensors such as the Kinect or more expensive scanning devices. Another approach relies solely on RGB images: by combining photographs taken at several known viewpoints, one is able to render novel views of a scene. A year ago, a method known as \textit{NeRF} (for Neural Radiance Field \cite{nerf}) tackled this challenge by using a deep neural network to simultaneously shapes and shadings. More recently, a new approach known as \textit{Plenoxels} \cite{plenoxels} showed that directly optimizing a voxel grid allowed better results with faster computations. This project is focused on this paper. We re-implemented parts of it and TODO.
+The most straightforward way to capture 3D objects from the real world is to use special sensors such as the Kinect or more expensive scanning devices. Another approach relies solely on RGB images: by combining photographs taken at several known viewpoints, one is able to render novel views of a scene. A year ago, a method known as \textit{NeRF} (for Neural Radiance Field \cite{nerf}) tackled this challenge by using a deep neural network to simultaneously shapes and shadings. More recently, a new approach known as \textit{Plenoxels} \cite{plenoxels} showed that directly optimizing a voxel grid allowed better results with faster computations. This project is focused on this paper. In Section \ref{sec:ourimp} we give an overview of our implementation, we review relevant related works in Section \ref{sec:relat}, we present the method and our results in Sections \ref{sec:method} and \ref{sec:results}, and finally, in Section \ref{sec:extent}, we propose our own extension of this method to obtain better point clouds.
 \footnote{\url{https://github.com/nissmar/Radiance-Fields}}
 
-\section{Our implementation}
+\section{Our implementation}\label{sec:ourimp}
 
 \subsection{Given code}
 
@@ -75,66 +76,13 @@ The given code associated to the plenoxels paper requires the compilation of a c
 \subsection{Our implementation}
 
 
-Since our implementation is "homemade", it doesn't contain every extension described in the paper. It is slower (because it doesn't use a custom CUDA kernel) but still usable in finite time: a simple 128x128x128 grid can be trained in 30 minutes. 
-
-%Our code is organized in the following manner:
-%\begin{itemize}
-%\item The file \textit{VoxelGrid.py} contains the different voxel grids (RGB colors, spherical harmonics and tri-linear interpolation) 
-%\item The files \textit{main.py} and \textit{main\_spherical.py} are used to optimize our grids
-%\item The different jupyter notebooks allow for a more interactive training and computation of PSNR
-%\item Some useful functions (including \textit{get\_data} and \textit{get\_rays\_np}) are located inside \textit{utilities.py}.
-%\end{itemize}
+Since our implementation is "homemade", it doesn't contain every extension described in the paper. It is slower (because it doesn't use a custom CUDA kernel) but still usable in finite time: a simple 128x128x128 grid can be trained in TODO minutes. 
 
 The Plenoxel paper introduces remarkable concepts and the given implementation is no less great: the custom CUDA kernel parrelize across rays, which allow a different number of active voxel for each ray and much faster computations. Reproducing the results was a challenge, and improving the given method (in terms of speed or quality of results) was impossible in the scope of this project. TODO dernière approche.
 % However, we found a way to extend this approach by integrating a point cloud export to the code, which links this project to the NPM3D course.   
+We used the \textit{nerf\_synthetic} dataset, composed of 8 virtual objects (see Figure \ref{fig:bigresults}).
 
-\subsection{Datasets}
-
-\begin{figure}[!h]
- \centering
-
-\begin{subfigure}{.24\textwidth}
-  \centering
-  \includegraphics[width=\linewidth]{figs/results/lego_ref.png}  
-\end{subfigure}
-\begin{subfigure}{.24\textwidth}
-  \centering
-  \includegraphics[width=\linewidth]{figs/results/drums_ref.png}  
-\end{subfigure}
-\begin{subfigure}{.24\textwidth}
-  \centering
-  \includegraphics[width=\linewidth]{figs/results/chair_ref.png}  
-\end{subfigure}
-\begin{subfigure}{.24\textwidth}
-  \centering
-  \includegraphics[width=\linewidth]{figs/results/hotdog_ref.png}  
-\end{subfigure}
-
-
-\begin{subfigure}{.24\textwidth}
-  \centering
-  \includegraphics[width=\linewidth]{figs/results/mic_ref.png}  
-\end{subfigure}
-\begin{subfigure}{.24\textwidth}
-  \centering
-  \includegraphics[width=\linewidth]{figs/results/materials_ref.png}  
-\end{subfigure}
-\begin{subfigure}{.24\textwidth}
-  \centering
-  \includegraphics[width=\linewidth]{figs/results/ficus_ref.png}  
-\end{subfigure}
-\begin{subfigure}{.24\textwidth}
-  \centering
-  \includegraphics[width=\linewidth]{figs/results/ship_ref.png}  
-\end{subfigure}
-
-     \caption{Test images from the \textit{nerf\_synthetic} datasets}
-    \label{fig:dataset}
-\end{figure}
-
-
-We used the \textit{nerf\_synthetic} dataset, composed of 8 virtual objects.
-\section{Related works}
+\section{Related works}\label{sec:relat}
 
 
 
@@ -150,7 +98,7 @@ The \textit{NeRF} \cite{nerf} approach consists of training a fully-connected ne
 
 \textit{DirectVoxGo} \cite{directvoxgo} is similar to Plenoxels: the main differences are that it uses a neural network (and not a custom CUDA implementation). It produces NeRF-comparable results in less than 15 minutes. More recently, a method using multiresolution Hash encoding \cite{instant} was able to reproduce the same results in less than 1 second!
 
-\section{The method}
+\section{The method}\label{sec:method}
 
 In this section, we'll describe the method of the original paper \cite{plenoxels}, and list the different between their implementation (see Figure \ref{fig:plenoxel}) and ours.
 
@@ -164,12 +112,54 @@ In this section, we'll describe the method of the original paper \cite{plenoxels
 
 
 
-\subsection{The voxel grid}
+\subsection{Voxel grid and spherical harmonics}
 
 The clever idea of Plenoxels is to optimize a voxel grid directly. Each voxel stores an opacity $\sigma \in \mathbf{R}^+$ along with spherical harmonics coefficients in $[0,1]$. These spherical harmonics allow each voxel to have a different color depending on the viewing direction, which renders specular effects and reflections.
 
-The original paper uses a sparse voxel grid optimized with the custom CUDA implementation. Ours is a dense voxel grid which which justifies the lower definition (128x128x128 vs 512x512x512) and the longer computation time. We experimented with spherical harmonics of degree 1 (each voxel has a single color)
-and 4, but we couldn't get good results with the latter. It may be due to the more complicated convergence. 
+\begin{figure}[!h]
+ \centering
+\begin{subfigure}{.1\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{figs/spherical_harmonics/harmonics_0.png}  
+\end{subfigure}
+\begin{subfigure}{.1\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{figs/spherical_harmonics/harmonics_1.png}  
+\end{subfigure}
+\begin{subfigure}{.1\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{figs/spherical_harmonics/harmonics_2.png}  
+\end{subfigure}
+\begin{subfigure}{.1\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{figs/spherical_harmonics/harmonics_3.png}  
+\end{subfigure}
+\begin{subfigure}{.1\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{figs/spherical_harmonics/harmonics_4.png}  
+\end{subfigure}
+\begin{subfigure}{.1\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{figs/spherical_harmonics/harmonics_5.png}  
+\end{subfigure}
+\begin{subfigure}{.1\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{figs/spherical_harmonics/harmonics_6.png}  
+\end{subfigure}
+\begin{subfigure}{.1\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{figs/spherical_harmonics/harmonics_7.png}  
+\end{subfigure}
+\begin{subfigure}{.1\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{figs/spherical_harmonics/harmonics_8.png}  
+\end{subfigure}
+     \caption{Spherical harmonics of order 1 to 9}
+    \label{fig:sph_harm}
+\end{figure}
+
+
+The original paper uses a sparse voxel grid optimized with the custom CUDA implementation. Ours is a dense voxel grid which which justifies the lower definition (128x128x128 vs 512x512x512) and the longer computation time. We experimented with spherical harmonics of degree 1 (each voxel has a single color), and 9, but the latter was to slow to trained. We used spherical harmonics in our extension (Section \label{sec:extent2}).
 
 \subsection{Color estimation from camera rays}
 
@@ -181,64 +171,60 @@ Where $ T_i = \exp(- \sum_{0\leq j<i} \sigma_j \delta_j)$ represents how much li
 At first, we were quite puzzled at by this formula, so we considered the following example: an object of constant color $c$ and opacity $\sigma$ sampled by $N$ points. The distance between points is thus $D/N$, where $D$ is a constant. The resulting color of a ray through this material is:
 \[ \sum_{1 \leq i \leq N} \exp(- (i-1)\frac{ \sigma D}{N})(1 - \exp(-  \frac{ \sigma D}{N}))c = c (1 - exp(- \sigma D))\]
 
-In this simple case, the color is indeed independent from the number of samples. Note that it assumes however constant values of color and opacity between samples.
+In this simple case, the color is indeed independent from the number of samples. When $N \rightarrow + \infty$, the render will converge (note that it assumes however constant values of color and opacity between samples). In our experiment, we decided to take $N$ sufficiently large so that the distance between samples isn't too big compared to the voxel size.
 
 
 \subsection{Optimization}
-The loss is then computed as $L = \sum_{p_x} \|p_x -\hat{c}(r(p_x)) \|^2 + \lambda_{TV}  L_{TV}$, and back-propagate through the grid. At each training step, we sample 5000 random rays and compute the total variation over the whole grid. We used an SGD optimizer to do the gradient descent with a learning rate of 1000, and $\lambda_{TV} = 10^{-4}$. 
+The loss is the Mean Squared Error: $L = \sum_{p_x} \|p_x -\hat{c}(r(p_x)) \|^2 + \lambda_{TV}  L_{TV}$, and back-propagate through the grid. At each training step, we sample 5000 random rays and compute the total variation over the whole grid. We used an SGD optimizer to do the gradient descent with a learning rate of 1000, and $\lambda_{TV} = 10^{-4}$. 
 
-\section{Results and experiments}
+\section{Results and experiments}\label{sec:results}
 
 \subsection{Visual interpretation}
 
+%\begin{figure}[!h]
+% \centering
+%
+%\begin{subfigure}{.24\textwidth}
+%  \centering
+%  \includegraphics[width=\linewidth]{figs/results/lego.png}  
+%\end{subfigure}
+%\begin{subfigure}{.24\textwidth}
+%  \centering
+%  \includegraphics[width=\linewidth]{figs/results/drums.png}  
+%\end{subfigure}
+%\begin{subfigure}{.24\textwidth}
+%  \centering
+%  \includegraphics[width=\linewidth]{figs/results/chair.png}  
+%\end{subfigure}
+%\begin{subfigure}{.24\textwidth}
+%  \centering
+%  \includegraphics[width=\linewidth]{figs/results/hotdog.png}  
+%\end{subfigure}
+%\begin{subfigure}{.24\textwidth}
+%  \centering
+%  \includegraphics[width=\linewidth]{figs/results/mic.png}  
+%\end{subfigure}
+%\begin{subfigure}{.24\textwidth}
+%  \centering
+%  \includegraphics[width=\linewidth]{figs/results/materials.png}  
+%\end{subfigure}
+%\begin{subfigure}{.24\textwidth}
+%  \centering
+%  \includegraphics[width=\linewidth]{figs/results/ficus.png}  
+%\end{subfigure}
+%\begin{subfigure}{.24\textwidth}
+%  \centering
+%  \includegraphics[width=\linewidth]{figs/results/ship.png}  
+%\end{subfigure}
+%     \caption{Our models evaluated on novel viewpoints (see our GitHub repository for animated GIFs)}
+%    \label{fig:results}
+%\end{figure}
 
-\begin{figure}[!h]
- \centering
-
-\begin{subfigure}{.24\textwidth}
-  \centering
-  \includegraphics[width=\linewidth]{figs/results/lego.png}  
-\end{subfigure}
-\begin{subfigure}{.24\textwidth}
-  \centering
-  \includegraphics[width=\linewidth]{figs/results/drums.png}  
-\end{subfigure}
-\begin{subfigure}{.24\textwidth}
-  \centering
-  \includegraphics[width=\linewidth]{figs/results/chair.png}  
-\end{subfigure}
-\begin{subfigure}{.24\textwidth}
-  \centering
-  \includegraphics[width=\linewidth]{figs/results/hotdog.png}  
-\end{subfigure}
-
-
-\begin{subfigure}{.24\textwidth}
-  \centering
-  \includegraphics[width=\linewidth]{figs/results/mic.png}  
-\end{subfigure}
-\begin{subfigure}{.24\textwidth}
-  \centering
-  \includegraphics[width=\linewidth]{figs/results/materials.png}  
-\end{subfigure}
-\begin{subfigure}{.24\textwidth}
-  \centering
-  \includegraphics[width=\linewidth]{figs/results/ficus.png}  
-\end{subfigure}
-\begin{subfigure}{.24\textwidth}
-  \centering
-  \includegraphics[width=\linewidth]{figs/results/ship.png}  
-\end{subfigure}
-
-     \caption{Our models evaluated on novel viewpoints (see our GitHub repository for animated GIFs)}
-    \label{fig:results}
-\end{figure}
-
-Considering the fact that we couldn't use a custom CUDA kernel, we are quite satisfied with our results. They are visually plausible, enven though at slight blur is sometimes noticeable. As we use spherical harmonics of degree 1, specular effects aren't rendered, and perhaps that is why some surfaces are semi-transparent. Visually, the ship is the least realistic: because of its small details, a grid of size 128x128x128 isn't sufficient to represent it.
+The result of our plenoxel implementation is visible in Figure \ref{fig:bigresults}, in the column \textit{Voxel Grid}. Considering the fact that we couldn't use a custom CUDA kernel, we are quite satisfied with our results. They are visually plausible, even though at slight blur is sometimes noticeable. As we use spherical harmonics of degree 1, specular effects aren't rendered, and perhaps that is why some surfaces are semi-transparent. Visually, the ship is the least realistic: because of its small details, a grid of size 128x128x128 isn't sufficient to represent it. We were impressed with the mic and its semi-transparent wire mesh.
 
 \subsection{PSNR comparison}
 
-The PSNR (for peak signal to noise ratio), defined as $PSNR = 10\log_{10}(1/MSE)$, is an image metric often used in image restoration. In this context, novel test views are used to compare the rendered model and the real image. In the original paper, a score of $23.74$ dB is reached with a 128x128x128 grid and nearest neighbor interpolation. We obtain a score of $TODO$. TODO PSNR We are quite satisfied with this result, considering the fact that we don't use spherical harmonics. 
+The PSNR (for peak signal to noise ratio), defined as $PSNR = 10\log_{10}(1/MSE)$, is an image metric often used in image restoration. In this context, novel test views are used to compare the rendered model and the real image. In the original paper, a score of $23.74$ dB is reached with a 128x128x128 grid and nearest neighbor interpolation. We obtain a score of $22.10$ dB (see Table \ref{tab:psnr}). We are quite satisfied with this result, considering the fact that we only use spherical harmonics of order 1. We verified a statement of the paper: TV regularization doesn't bring better results in those synthetic scenes. Surprisingly, the ficus has a higher PSNR than the chair, although the latter looks much better: this metric compares pixel values, and not shape consistency. 
 
 \begin{table}[!h]
 \centering
@@ -273,13 +259,35 @@ Mean & 22.10 ± 1.4  dB & 22.10 ± 1.4 dB \\
 In the paper, they subdivide the voxel grid via tri-linear interpolation to boost the training phase. We tested and implemented this method which greatly accelerated our optimization (Figures \ref{fig:lego_optim} and \ref{fig:subd}). We use grids of size ${16, 32, 64, 128}$, on respectively ${2, 4, 8, 8}$ epochs with a learning rate of ${1000, 1000, 500, 500}$. We use trilinear interpolation on colors and opacities to subdivide the grid.
 
 
-\section{Using plenoxels to generate point clouds}
 
-\subsection{CloudCompare pipeline}
+\subsection{Using plenoxels to generate point clouds: CloudCompare pipeline}
+
+
+\begin{figure}[!h]
+ \centering
+\begin{subfigure}{.24\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{figs/pc/chair.png}  
+\end{subfigure}
+\begin{subfigure}{.24\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{figs/pc/chairc.png}  
+\end{subfigure}
+\begin{subfigure}{.24\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{figs/pc/ficus.png}  
+\end{subfigure}
+\begin{subfigure}{.24\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{figs/pc/ficusc.png}  
+\end{subfigure}
+     \caption{Lego and mic models loaded in cloud compare}
+    \label{fig:cc}
+\end{figure}
 
 A point cloud can be seen as a voxel grid with discrete (0 or 1) opacities. We implemented a \textit{.ply} export of our voxel grids, storing the RGB colors and the opacity as a scalar field. 
 
-The point cloud is then loaded in CloudCompare. We found that applying the following transformations resulted in a clean, usable point cloud:
+The point cloud is then loaded in CloudCompare. We found that applying the following transformations helped clean the result:
 
 \begin{itemize}
 \item \textbf{Edit $>$ Scalar fields $>$ Filter by value} (Range $2.0; +\infty$) to remove the transparent voxels
@@ -288,44 +296,102 @@ The point cloud is then loaded in CloudCompare. We found that applying the follo
 \end{itemize}
 
 
+The optimal parameters may vary for each model (little less value filter for the lego model, little more noise filter for the hotdog model..). Although the colors are transferred efficiently, the shape is imprecise as the opacities aren't binary: some white cloud remain (for instance on the arm of the chair), and filtering them may lead to the destruction of tiny details (such as the leaves of the ficus). We imagined and implemented a new method to obtain better quality results: this is what we'll see now.
+
+\section{First extension: deterministic voxel grid optimization}\label{sec:extent}
+
+\subsection{The idea}
+
+Since the \textit{nerf\_synthetic} photographs have a transparent background, some of the rays shouldn't hit any voxels (we call them \textit{transparent rays}). First we set every opacity to a constant $\sigma$ (we set it fairly high to have a almost opaque voxels). Then we remove the voxels which are on the path of transparent rays (note that this idea is a simpler version of space carving \cite{spacecarving}). Once the voxel grid has been carved, we must add the colors. Instead of using the complicated loss $L = \sum_{p_x} \|p_x -\hat{c}(r(p_x)) \|^2$, we average the colors of the corresponding pixels, with weights proportional to the opacity in each visit. The formula is $\tilde{c_v} = \frac{ \sum_{r \in R_v} T_{i,r}  (1 - \exp(-\sigma \delta_i)) p_r }{ \sum_{r \in R_v} T_{i,r}  (1 - \exp(-\sigma \delta_i))  }$ where $R_v$ is the set of all rays passing through voxel $v$. This method is lightning fast, as it requires only 2 passes through the dataset to obtain the final shape: a 128x128x128 grid can be obtained in 1 minute 30.
+
+\subsection{Results}
 
 \begin{figure}[!h]
  \centering
-\begin{subfigure}{.25\textwidth}
+\begin{subfigure}{.24\textwidth}
   \centering
-  \includegraphics[width=\linewidth]{figs/lego_pc_no.png}  
+  \includegraphics[width=\linewidth]{figs/carve/chair.png}  
 \end{subfigure}
-\begin{subfigure}{.25\textwidth}
+\begin{subfigure}{.24\textwidth}
   \centering
-  \includegraphics[width=\linewidth]{figs/lego_pc.png}  
+  \includegraphics[width=\linewidth]{figs/carve/chairc.png}  
 \end{subfigure}
-\begin{subfigure}{.21\textwidth}
+\begin{subfigure}{.24\textwidth}
   \centering
-  \includegraphics[width=\linewidth]{figs/mic_pc_no.png}  
+  \includegraphics[width=\linewidth]{figs/carve/ficus.png}  
 \end{subfigure}
-\begin{subfigure}{.21\textwidth}
+\begin{subfigure}{.24\textwidth}
   \centering
-  \includegraphics[width=\linewidth]{figs/mic_pc.png}  
+  \includegraphics[width=\linewidth]{figs/carve/ficusc.png}  
 \end{subfigure}
-     \caption{Lego and mic models loaded in cloud compare}
-    \label{fig:cc}
+     \caption{Chair and ficus models obtained with our method}
+    \label{fig:cc2}
 \end{figure}
 
- 
-\subsection{Discussion}
-
-Although these parameters work great, the optimal ones may vary for each model (little less value filter for the lego model, little more noise filter for the hotdog model..). We are pretty satisfied with the results, and a good extension to this project would be to compare the point cloud obtained with this method and a more specialized device (kinect...) on a real scene.
-
-\section{Our extension: voxel grid optimization on a single pass}
-We were quite dissatisfied with the obtained point clouds, especially because the opacities aren't binary (fully opaque or fully transparent). 
-
-\subsection{The idea}
-Since the \textit{nerf\_synthetic} photographs have a transparent background, some of the rays shouldn't hit any voxels. Our first step is removing the voxels on the path of rays corresponding to transparent pixels. Note that this idea was inspired by \cite{spacecarving}. Once the voxel grid has been carved, we must add the colors. The function to optimize, $L = \sum_{p_x} \|p_x -\hat{c}(r(p_x)) \|^2$ is not convex. However we found a way to color each voxel: we average the colors of the corresponding pixels, with weights proportional to the opacity in each visit. The formula is $c_v = \frac{ \sum_{r \in R_v} T_{i,r}  (1 - \exp(-\sigma_i \delta_i)) p_r }{ \sum_{r \in R_v} T_{i,r}  (1 - \exp(-\sigma_i \delta_i))  }$ where $R_v$ is the set of all rays visiting $v$.
+The obtained pointclouds are much cleaner and usable (Figure \ref{fig:cc2}), although some artifacts may appear (for instance the wheels of the lego model, Figure \ref{fig:ourccdetail}). Since the color of every voxel $\tilde{c_v}$ is estimated, the whole material is colored (Figure \ref{fig:legod2}). In the concave parts of the model, the voxels aren't removed, which leads to inaccuracies (Figure \label{fig:legod3}). Even if the user doesn't need a point cloud, this approach shows the visible voxels in the training set: we believe it can be useful to create new scenes with the correct amount of photographs. Even for real objects, transparent backgrounds can be easily obtained with segmentation tools. 
 
 
+\begin{figure}[!h]
+ \centering
+\begin{subfigure}{.32\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{figs/carve/legod1.png}   \caption{\label{fig:legod1} The full model}
+\end{subfigure}
+\begin{subfigure}{.32\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{figs/carve/legod2.png}   \caption{\label{fig:legod2} Each voxel is colored }
+\end{subfigure}
+\begin{subfigure}{.32\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{figs/carve/legod3.png}   \caption{\label{fig:legod3}  Concave shaped are filled}
+\end{subfigure}
+   \caption{Details of our the lego model}
+    \label{fig:ourccdetail}
+\end{figure}
+
+The efficiency of that method made using spherical harmonics possible: this is what we will present in the next section.
+
+\section{Second extension: quick spherical harmonics}\label{sec:extent2}
+
+The second algorithm extends the one described in the previous section: the first steps are identical, with the exception of setting the first spherical harmonics of the whole color of the pixel (note that in this case each voxel stores 9x3 coefficients instead of just 3). Since we have set the opacities to a high value, we can consider that each voxel is either transparent or visible. The loss becomes $L = \sum_{p_x} \|p_x -\hat{c}(r(p_x)) \|^2 = \sum_{v} \sum_{p_x hitting v} (p_x - S_{r(p_x)}^T c_v)^2$. For each voxel and each ray, the gradient can be computed, and is equal to $ -2 S_{r(p_x)} (p_x - S_{r(p_x)}^T c_v)^T$. This fastens up computations, and we optimize our grid directly with SGD and a decaying learning rate going from 1 to TODO.
 
 \section{Conclusion}
 \newpage
 \bibliographystyle{alpha}
 \bibliography{sample}
+
+\newpage
+
+\newcommand{\animage}[1][example-image]{\adjustbox{valign=m,vspace=0pt}{\includegraphics[width=.18\linewidth]{#1}}}
+
+\begin{figure}
+\centering
+\begin{tabular}{cccc}
+Ground truth & Voxel Grid & Voxel Carve & VoxelCarve Spherical \\
+       
+       
+\animage[figs/comp/chair.png]  & \animage[figs/comp/vg_chair.png] & \animage[figs/comp/vgc_chair.png] & \animage[figs/comp/drums.png] \\
+
+\animage[figs/comp/materials.png]  & \animage[figs/comp/vg_materials.png] & \animage[figs/comp/vgc_materials.png] & \animage[figs/comp/drums.png] \\
+
+\animage[figs/comp/mic.png]  & \animage[figs/comp/vg_mic.png] & \animage[figs/comp/vgc_mic.png] & \animage[figs/comp/drums.png] \\
+
+
+\animage[figs/comp/lego.png]  & \animage[figs/comp/vg_lego.png] & \animage[figs/comp/vgc_lego.png] & \animage[figs/comp/drums.png] \\
+
+\animage[figs/comp/drums.png]  & \animage[figs/comp/vg_drums.png] & \animage[figs/comp/vgc_drums.png] & \animage[figs/comp/ship.png] \\
+
+\animage[figs/comp/ficus.png]  & \animage[figs/comp/vg_ficus.png] & \animage[figs/comp/vgc_ficus.png] & \animage[figs/comp/drums.png] \\
+
+
+\animage[figs/comp/hotdog.png]  & \animage[figs/comp/vg_hotdog.png] & \animage[figs/comp/vgc_hotdog.png] & \animage[figs/comp/drums.png] \\
+
+
+\animage[figs/comp/ship.png]  & \animage[figs/comp/vg_ship.png] & \animage[figs/comp/vgc_ship.png] & \animage[figs/comp/drums.png] \\
+\end{tabular}
+\caption{\label{fig:bigresults} Our models evaluated on novel test views}
+\end{figure}
+
+
+
 \end{document}
