@@ -10,13 +10,16 @@ import argparse
 import time as tm
 
 t_start = tm.time()
-parser = argparse.ArgumentParser(description='Compute a voxel grid from images. All lists must have the same size')
-parser.add_argument('-model', default="drums", help='dataset folder')
+parser = argparse.ArgumentParser(description='Compute a voxel grid from images, with spherical harmonics')
+parser.add_argument('-model', default="drums", help='string: model used')
+parser.add_argument('-psnr', default=False, help='boolean: compute psnr')
+
 args = parser.parse_args()
+
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 device='cuda' if torch.cuda.is_available() else 'cpu'
 
-
+print('Loading data...')
 model=args.model
 dataset= "../nerf_synthetic/" + model
 focal, all_c2w, all_gt = get_data(dataset, "train")
@@ -37,30 +40,31 @@ train_loader_carve = torch.utils.data.DataLoader(D_carve, batch_size=5000, shuff
 D = RayDataset(target_ims, rays, device)
 train_loader = torch.utils.data.DataLoader(D, batch_size=5000, shuffle=True)
 
-    
 VG = VoxelGridSphericalCarve(128, 1.4, 40, 9)
 
+print('Carving model')
 carve(VG, train_loader_carve, 900)
 
-color_sph_base(VG, train_loader, 900)
+print('coloring model')
 
+color_sph_base(VG, train_loader, 900)
 losses+=color_sph_sgd(VG, train_loader, 900, 0.9)
 VG.smooth_colors()
 
 for lr in tqdm([0.9, 0.1, 0.1]):
     losses+=color_sph_sgd(VG, train_loader, 900, lr)
     plt.clf()
-    plt.plot((np.array(losses)))
+    plt.plot(rolling_average(np.array(losses), 100))
     plt.savefig('screenshots/training.png')
 
 
-#VG.save(model+'_carve.obj')
-# PSNR
+VG.save(model+'_carve_sph.obj')
+print("Computed in ", tm.time()-t_start, " seconds")
 
-test_focal, test_c2w, test_gt = get_data("../nerf_synthetic/" + model, "test")
+if args.psnr:
+    test_focal, test_c2w, test_gt = get_data("../nerf_synthetic/" + model, "test")
+    red = 8
+    disp_ims_test, disp_rays_test = reduce_data(test_c2w, test_gt,test_focal, red)
+    disp_im_w = disp_ims_test[0].shape[0]
 
-red = 8
-disp_ims_test, disp_rays_test = reduce_data(test_c2w, test_gt,test_focal, red)
-disp_im_w = disp_ims_test[0].shape[0]
-
-print(model, compute_psnr(VG, disp_rays_test, disp_ims_test, 900), tm.time()-t_start)
+    print(model, compute_psnr(VG, disp_rays_test, disp_ims_test, 900), tm.time()-t_start)

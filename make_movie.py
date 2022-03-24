@@ -11,7 +11,6 @@ import time as tm
 
 parser = argparse.ArgumentParser(description='Compute a movie from a model.')
 parser.add_argument('-model', default="chair_carve", help='model')
-parser.add_argument('-dataset', default="chair", help='dataset folder')
 args = parser.parse_args()
 
 
@@ -19,9 +18,8 @@ os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 device='cuda' if torch.cuda.is_available() else 'cpu'
 
 
-dataset= "../nerf_synthetic/" + args.dataset
-focal, all_c2w, all_gt = get_data(dataset, "test")
-cust_c2ws = create_rotation_matrices(1.5, -20, n=120)
+focal = 1111
+cust_c2ws = create_rotation_matrices(3, -40, n=120)
 red_fac=2
 ordir_rays=[]
 for c2w in cust_c2ws:
@@ -33,13 +31,12 @@ for c2w in cust_c2ws:
 
 VG=VoxelGridSphericalCarve(128, 1.4, 40, 9)
 VG.load(args.model+'.obj')
-
+VG.smooth_colors()
 imgs=[]
 for image_ind in tqdm(range(len(cust_c2ws))):
     with torch.no_grad():
         new_im = VG.render_large_image_from_rays(ordir_rays[image_ind],(900, 1.2))
-        plt.imshow(new_im)
-        plt.show()
+        plt.imsave('screenshots/render.png', new_im)
         imgs.append(np.uint8(255*new_im))
 
 imageio.mimwrite('exports/movies_'+args.model+'.gif', imgs,  format='GIF', duration=0.04)

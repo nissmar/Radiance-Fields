@@ -20,7 +20,7 @@ def get_data(root="../nerf_example_data/nerf_synthetic/lego", stage="train", bac
     #print('LOAD DATA', data_path)
     j = json.load(open(data_json, 'r'))
 
-    for frame in tqdm(j['frames']):
+    for frame in j['frames']:
         fpath = os.path.join(data_path, os.path.basename(
             frame['file_path']) + '.png')
         c2w = frame['transform_matrix']
@@ -110,7 +110,7 @@ class RayDataset(Dataset):
         self.tensor_rays = [] # (tuple (origin, first_point))
         self.tensor_target_pixels = []
         
-        for image_ind in tqdm(range(len(ordir_rays))):
+        for image_ind in range(len(ordir_rays)):
             direct = torch.tensor(ordir_rays[image_ind][1], dtype=torch.float32)
             ori =  torch.tensor(ordir_rays[image_ind][0], dtype=torch.float32)
             pixels = torch.tensor(target_ims[image_ind], dtype=torch.float32)
@@ -204,7 +204,7 @@ def color_sph_base(grid, loader, N_points):
         grid.color((rays[0][mask],rays[1][mask]), pixels[mask], N_points)
     with torch.no_grad():
         mask = grid.colors_sum>0
-        grid.colors[mask,:,0] = grid.colors[mask,:, 0]/(grid.colors_sum[mask, None])/0.28
+        grid.colors[mask,:,0] = grid.colors[mask,:, 0]/(grid.colors_sum[mask, None])/0.2821
         
 def color_sph_sgd(grid, loader, N_points, lr=1):
     losses=[]
