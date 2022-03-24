@@ -10,7 +10,7 @@ import argparse
 import time as tm
 
 parser = argparse.ArgumentParser(description='Compute a movie from a model.')
-parser.add_argument('-model', default="chair_carve", help='model')
+parser.add_argument('-model', default="chair", help='model')
 args = parser.parse_args()
 
 
@@ -19,7 +19,7 @@ device='cuda' if torch.cuda.is_available() else 'cpu'
 
 
 focal = 1111
-cust_c2ws = create_rotation_matrices(3, -40, n=120)
+cust_c2ws = create_rotation_matrices(1.4, -20, n=120)
 red_fac=2
 ordir_rays=[]
 for c2w in cust_c2ws:
@@ -29,9 +29,8 @@ for c2w in cust_c2ws:
     ordir_rays.append((oris, direct))
 
 
-VG=VoxelGridSphericalCarve(128, 1.4, 40, 9)
+VG=VoxelGrid()
 VG.load(args.model+'.obj')
-VG.smooth_colors()
 imgs=[]
 for image_ind in tqdm(range(len(cust_c2ws))):
     with torch.no_grad():

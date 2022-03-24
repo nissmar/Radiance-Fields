@@ -59,7 +59,7 @@ plt.imsave('screenshots/render2.png', VG.render_large_image_from_rays(rays[30],(
 plt.show()
 
 VG.save(model+'_'+str(VG.size)+'_carve.obj')
-
+VG.save_pointcloud()
 print("Computed in ", tm.time()-t_start, " seconds")
 
 if args.psnr:
