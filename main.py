@@ -14,7 +14,7 @@ parser = argparse.ArgumentParser(description='Compute a voxel grid from images. 
 parser.add_argument('-dataset', default="../nerf_synthetic/materials", help='dataset folder')
 parser.add_argument('-initial_size', type = int, default=16, help='initial voxel grid size')
 parser.add_argument('-batch_size', type = int, default=5000, help='batch_size')
-parser.add_argument('-epochs', nargs='+', type=int, default=[2, 4, 8, 8], help='list of epochs')
+parser.add_argument('-epochs', nargs='+', type=int, default=[2, 4, 8, 16], help='list of epochs')
 parser.add_argument('-npoints', nargs='+', type=int, default=[50, 100, 200, 200], help='list of samples along rays')
 parser.add_argument('-lrs', nargs='+', type=int, default=[1000, 1000, 500, 500], help='list of learning rates')
 args = parser.parse_args()
@@ -44,8 +44,8 @@ def train(epoch, optimizer):
         rays, pixels = (rays[0].to(device),rays[1].to(device)), pixels.to(device)
         optimizer.zero_grad()
         pix_estims = VG.render_rays(rays, (N_points))
-        loss = ((pix_estims-pixels)**2).sum()/rays[0].shape[0] + 0.0001*VG.total_variation()
-        #loss = ((pix_estims-pixels)**2).sum()/rays[0].shape[0]
+        #loss = ((pix_estims-pixels)**2).sum()/rays[0].shape[0] + 0.0001*VG.total_variation()
+        loss = ((pix_estims-pixels)**2).sum()/rays[0].shape[0]
         loss.backward()
         losses.append(loss.item())
         optimizer.step()
@@ -76,7 +76,7 @@ for epochs, N_points, lr in zip(tqdm(args.epochs), args.npoints, args.lrs):
         plt.clf()
         plt.plot(np.log(rolling_average(np.array(losses))))
         plt.savefig('screenshots/training.png')
-        VG.save('out_grid.obj')
+        VG.save(args.dataset[18:-1]+'.obj')
     VG.subdivide()
     
 

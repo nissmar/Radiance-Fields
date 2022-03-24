@@ -19,7 +19,7 @@ parser.add_argument('-reduce', type = int, default=8, help='image reduction')
 args = parser.parse_args()
 
 print(args.grid)
-VG = VoxelGrid()
+VG = VoxelGridSpherical()
 VG.load(args.grid + ".obj")
 #VG.subdivide()
 
@@ -28,4 +28,4 @@ red = args.reduce
 disp_ims_test, disp_rays_test = reduce_data(test_c2w, test_gt,test_focal, red)
 disp_im_w = disp_ims_test[0].shape[0]
 
-print(compute_psnr(VG, disp_rays_test, disp_ims_test, 1800))
+print(compute_psnr(VG, disp_rays_test, disp_ims_test, 900))
