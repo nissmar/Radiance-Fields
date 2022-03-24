@@ -46,13 +46,13 @@
   \centering
   \includegraphics[width=\linewidth]{figs/model32.png}  
 \end{subfigure}
-     \caption{Our model at epoch {0, 2, 6, 14, 22}. Total computation time: 35 minutes on a single GPU.}
+     \caption{Our VoxelGrid at epoch {0, 2, 6, 14, 22}. Total computation time: 35 minutes on a single GPU.}
     \label{fig:lego_optim}
 \end{figure}
 
 
 \begin{abstract}
-This project report is a study of the article \textbf{Plenoxels: Radiance Fields without Neural Networks} \cite{plenoxels}. Being in the impossibility of using the provided custom CUDA kernel, we have re-implemented the method and a few of the proposed optimizations from scratch. Limiting ourselves to a small 128-sized grid, our implementation achieves a peak-signal-to-noise ratio of $22.10$ dB, not so far from the $23.74$ dB mentioned in the article with a similar setting. Inspired by \textbf{Space carving} \cite{spacecarving}, we show that this method can be extended to generate clean point clouds from photographs, and propose a different optimization method, which achieves a PSNR of $22.90$ dB. We strongly urge the reader to visit our GitHub repository\footnote{\url{https://github.com/nissmar/Radiance-Fields}} which contains animated GIFs, allowing a better understanding of our results (which are on the last page of this report).
+This project report is a study of the article \textbf{Plenoxels: Radiance Fields without Neural Networks} \cite{plenoxels}. Being in the impossibility of using the provided custom CUDA kernel, we have re-implemented the method and a few of the proposed optimizations from scratch. Limiting ourselves to a small 128-sized grid, our implementation achieves a peak-signal-to-noise ratio of $22.10$ dB, not so far from the $23.74$ dB mentioned in the article with a similar setting. We propose two novel extensions: the first one is inspired by \textbf{Space carving} \cite{spacecarving} and allows the generation of clean point clouds from photographs, and the second one relies on a different optimization method and achieves a PSNR of $22.90$ dB. We strongly urge the reader to visit our GitHub repository\footnote{\url{https://github.com/nissmar/Radiance-Fields}} which features animated GIFs, allowing a better viewing of our results (which are on the last page of this report).
 \end{abstract}
 
 
@@ -254,7 +254,7 @@ In the paper, they subdivide the voxel grid via tri-linear interpolation to boos
   \centering
   \includegraphics[width=\linewidth]{figs/pc/ficusc.png}  
 \end{subfigure}
-     \caption{Lego and mic models loaded in cloud compare}
+     \caption{Chair and ficus models loaded in CloudCompare}
     \label{fig:cc}
 \end{figure}
 
@@ -337,7 +337,7 @@ The results can be seen in Figure \ref{fig:bigresults}. The results are a massiv
 
 \section{Conclusion}
 
-Re-implementing Plenoxels from scratch was definitely a challenge: their using of a non-standard CUDA kernel should have warned us of the underlying complexity. As the algorithm relies on an optimization, mistakes often go unnoticed and the debugging is particularly hard. We are quite satisfied with the results we obtained, close in PSNR to the results obtained in the article with a 128 grid and nearest-neighbor interpolation.
+Re-implementing Plenoxels from scratch was definitely a challenge: their using of a non-standard CUDA kernel should have warned us of the underlying complexity. As the algorithm relies on an optimization, mistakes often go unnoticed and the debugging is particularly hard. Nevertheless, we are quite satisfied with the results our substantial amount of code (600 lines for the file \textit{VoxelGrid.py} alone)  provides, close in PSNR to the results obtained in the article with a 128 grid and nearest-neighbor interpolation.
 
 We expected that their method would easily translate to point cloud generation, but it isn't the case: as shown in the last section, we believe it's because the differentiable rendering only creates a mere \textit{illusion} of shape. Our extensions mitigate this problem, although they aren't able to carve out concavities in the rendered objects.
 
