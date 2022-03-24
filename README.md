@@ -6,9 +6,9 @@ NPM3D MVA project, coded from (almost) scratch, inspired by [Space carving](http
 
 Composed two steps: space carving and opaque voxels optimization. Running `main_carve_sph.py` takes approximately 4 minute on a single GPU.
 
-<img src="exports/spherical_harmonics/lego.gif" alt="gif loading" width="200"/> <img src="exports/spherical_harmonics/hotdog.gif" alt="gif loading" width="200"/> <img src="exports/spherical_harmonics/mic.gif" alt="gif loading" width="200"/>
+<img src="exports/spherical_harmonics/lego.gif" alt="gif loading" width="250"/> <img src="exports/spherical_harmonics/hotdog.gif" alt="gif loading" width="250"/> <img src="exports/spherical_harmonics/mic.gif" alt="gif loading" width="250"/>
 
-<img src="exports/spherical_harmonics/chair.gif" alt="gif loading" width="200"/> <img src="exports/spherical_harmonics/materials.gif" alt="gif loading" width="200"/> <img src="exports/spherical_harmonics/ship.gif" alt="gif loading" width="200"/>
+<img src="exports/spherical_harmonics/chair.gif" alt="gif loading" width="250"/> <img src="exports/spherical_harmonics/materials.gif" alt="gif loading" width="250"/> <img src="exports/spherical_harmonics/ship.gif" alt="gif loading" width="250"/>
 
 Spherical harmonics of degree 9 are used to render the shading of each voxel:
 
@@ -24,9 +24,9 @@ Running `main_carve.py` takes approximately 1 minute on a single GPU.
 
 ## Our implementation of plenoxels
 
-<img src="exports/gifs/movies_chair.gif" alt="gif loading" width="200"/> <img src="exports/gifs/movies_lego.gif" alt="gif loading" width="200"/> <img src="exports/gifs/movies_ficus.gif" alt="gif loading" width="200"/>
+<img src="exports/gifs/movies_chair.gif" alt="gif loading" width="250"/> <img src="exports/gifs/movies_lego.gif" alt="gif loading" width="250"/> <img src="exports/gifs/movies_ficus.gif" alt="gif loading" width="250"/>
 
-<img src="exports/gifs/movies_mic.gif" alt="gif loading" width="200"/>  <img src="exports/gifs/movies_drums.gif" alt="gif loading" width="200"/> <img src="exports/gifs/movies_hotdog.gif" alt="gif loading" width="200"/>
+<img src="exports/gifs/movies_mic.gif" alt="gif loading" width="250"/>  <img src="exports/gifs/movies_drums.gif" alt="gif loading" width="250"/> <img src="exports/gifs/movies_hotdog.gif" alt="gif loading" width="250"/>
 
 ### Training
 Run `main.py` to start the training. It takes approximately 30 minutes on a single GPU and saves the final 128x128x128 voxel grid in `./saved_grids/`.
