@@ -4,7 +4,7 @@ NPM3D MVA project, coded from (almost) scratch, inspired by [Space carving](http
 
 ## Space carving, plenoxels and spherical harmonics
 
-Composed two steps: space carving and opaque voxels optimization. Running `main_carve_sph.py` takes approximately 4 minute on a single GPU.
+Composed of two steps: space carving and opaque voxels optimization. Running `main_carve_sph.py` takes approximately 4 minutes on a single GPU.
 
 <img src="exports/spherical_harmonics/lego.gif" alt="gif loading" width="250"/> <img src="exports/spherical_harmonics/hotdog.gif" alt="gif loading" width="250"/> <img src="exports/spherical_harmonics/mic.gif" alt="gif loading" width="250"/>
 
